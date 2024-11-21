@@ -1,4 +1,5 @@
-#University
+# University
+
 TU Berlin WS 2024/2025
 
 # Module
@@ -11,7 +12,9 @@ AutoTables
 
 # Project Description
 
-Tranformation of auto-tables into non-relational data structures and algorithms
+- Auto-Tables: Synthesizing Multi-Step Transformations to
+  Relationalize Tables without Using Examples
+- Tranformation of auto-tables into non-relational data structures and algorithms.
 
 # Features
 
