@@ -26,7 +26,7 @@ for file in csv_files:
 # Concatenate all valid DataFrames
 if dataframes:
     combined_df = pd.concat(dataframes, ignore_index=True)
-    combined_df.to_csv("all_tables_combined.csv", index=False)
+    combined_df.to_csv("datasets/all_tables_combined.csv", index=False)
     print(f"All tables combined into all_tables_combined.csv. Shape: {combined_df.shape}")
 else:
     raise ValueError("No valid dataframes to concatenate.")
