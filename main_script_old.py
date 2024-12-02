@@ -1,4 +1,4 @@
-# import os
+# import osall
 # import pandas as pd
 # import numpy as np
 # import random
@@ -7,7 +7,7 @@
 #     """Prompt the user for a dataset name and return the full path if it exists."""
 #     dataset_name = input("Please enter the dataset name (including file extension, e.g., dataset.csv): ")
 #     datasets_folder = "datasets"  # Folder containing the datasets
-#     dataset_path = os.path.join(datasets_folder, dataset_name)
+#     dataset_path = os.path.join(dataset_name)
 
 #     if not os.path.exists(dataset_path):
 #         print(f"Error: The dataset '{dataset_name}' was not found in the '{datasets_folder}' folder.")
@@ -110,7 +110,7 @@ def prompt_for_dataset():
     """Ask the user for a dataset filename and return its full path if it exists."""
     dataset_name = input("Enter the dataset filename (with extension, e.g., dataset.csv): ")
     datasets_directory = "datasets"  # Directory where datasets are stored
-    full_path = os.path.join(datasets_directory, dataset_name)
+    full_path = os.path.join( dataset_name)
 
     if not os.path.isfile(full_path):
         print(f"Error: The dataset '{dataset_name}' could not be found in the '{datasets_directory}' directory.")
@@ -128,7 +128,7 @@ def read_dataset(file_path: str):
         print(f"Error loading dataset: {error}")
         return None
 
-# Inverse transformation functions
+#Inverse transformation functions
 def reverse_stack(df: pd.DataFrame) -> pd.DataFrame:
     """Reverse the 'stack' operation to create a non-relational format."""
     if df.shape[1] < 2:
@@ -192,12 +192,12 @@ def execute_script():
     if df is None:
         return
     
-    # Create a non-relational table as an example
+    #Create a non-relational table as an example
     non_relational_table = create_non_relational_table(df)
     print("Preview of the transformed non-relational table:")
     print(non_relational_table.head())
 
-    # Save the transformed table
+   # Save the transformed table
     output_filename = "non_relational_" + os.path.basename(dataset_path)
     export_non_relational_table(non_relational_table, output_filename)
 

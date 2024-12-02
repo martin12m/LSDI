@@ -113,6 +113,7 @@
 # print("All tables have been created and saved successfully.")
 
 
+
 import os
 import pandas as pd
 import numpy as np
@@ -121,8 +122,8 @@ from faker import Faker
 
 # Configuration parameters
 TOTAL_TABLES = 5000
-MAX_ROWS = 50
-MAX_COLUMNS = 10
+ROW_COUNT = 100  # Fixed number of rows
+COLUMN_COUNT = 100  # Fixed number of columns (including 'id')
 FOREIGN_KEY_PROBABILITY = 0.1  # 10% chance to include a foreign key
 
 # Initialize Faker for generating realistic data
@@ -146,6 +147,47 @@ PREDEFINED_COLUMNS = {
     'active': 'bool',
     'rating': 'float'
 }
+import os
+import pandas as pd
+import numpy as np
+import random
+from faker import Faker
+
+# Configuration parameters
+TOTAL_TABLES = 5000
+ROW_COUNT = 100  # Fixed number of rows
+COLUMN_COUNT = 50  # Fixed number of columns (including 'id')
+FOREIGN_KEY_PROBABILITY = 0.1  # 10% chance to include a foreign key
+
+# Initialize Faker for generating realistic data
+data_generator = Faker()
+
+# Define the structure of predefined columns
+PREDEFINED_COLUMNS = {
+    'id': 'int',
+    'name': 'str',
+    'age': 'int',
+    'email': 'str',
+    'address': 'str',
+    'phone': 'str',
+    'created_at': 'datetime',
+    'status': 'str',
+    'score': 'float',
+    'category': 'str',
+    'price': 'float',
+    'quantity': 'int',
+    'description': 'str',
+    'active': 'bool',
+    'rating': 'float'
+}
+
+# Dynamically add additional columns if needed
+for i in range(15, COLUMN_COUNT):
+    PREDEFINED_COLUMNS[f'custom_col_{i}'] = random.choice(['int', 'float', 'str'])
+
+# Ensure COLUMN_COUNT does not exceed the total number of available columns
+if COLUMN_COUNT > len(PREDEFINED_COLUMNS):
+    raise ValueError(f"COLUMN_COUNT ({COLUMN_COUNT}) exceeds available columns ({len(PREDEFINED_COLUMNS)}).")
 
 # Function to create random data based on data type
 def generate_data(column_name, data_type, row_count):
@@ -191,29 +233,24 @@ tables_dict = {}
 for table_index in range(1, TOTAL_TABLES + 1):
     table_name = f'table_{table_index}'
     
-    # Randomly decide the number of columns
-    column_count = random.randint(1, MAX_COLUMNS)
-    selected_columns = random.sample(list(PREDEFINED_COLUMNS.keys()), column_count)
-    
-    # Ensure 'id' is included in the columns
-    if 'id' not in selected_columns:
-        selected_columns.insert(0, 'id')
+    # Select exactly COLUMN_COUNT predefined columns
+    selected_columns = random.sample(list(PREDEFINED_COLUMNS.keys()), COLUMN_COUNT - 1)
+    selected_columns.insert(0, 'id')  # Ensure 'id' is the first column
     
     table_content = {}
-    row_count = random.randint(1, MAX_ROWS)
     
     for column in selected_columns:
-        if column.startswith('fk_') or (random.random() < FOREIGN_KEY_PROBABILITY and table_index > 1):
+        if random.random() < FOREIGN_KEY_PROBABILITY and table_index > 1:
             # Handle foreign key columns
             foreign_table = random.choice(list(tables_dict.keys()))
             foreign_ids = tables_dict[foreign_table]['id'].tolist()
             if foreign_ids:
-                table_content[column] = np.random.choice(foreign_ids, size=row_count)
+                table_content[column] = np.random.choice(foreign_ids, size=ROW_COUNT)
             else:
-                table_content[column] = np.random.randint(1, 1000, size=row_count)
+                table_content[column] = np.random.randint(1, 1000, size=ROW_COUNT)
         else:
             column_type = PREDEFINED_COLUMNS[column]
-            table_content[column] = generate_data(column, column_type, row_count)
+            table_content[column] = generate_data(column, column_type, ROW_COUNT)
     
     df = pd.DataFrame(table_content)
     tables_dict[table_name] = df
@@ -223,4 +260,5 @@ for table_index in range(1, TOTAL_TABLES + 1):
     df.to_csv(csv_file_path, index=False)
     
     if table_index % 1000 == 0:
-        print(f"Successfully")
+        print(f"Generated {table_index} tables successfully.")
+
