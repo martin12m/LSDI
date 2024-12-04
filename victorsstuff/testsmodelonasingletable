@@ -1,0 +1,43 @@
+##testing on a single table
+
+relational_folder = "relational_tables_csv_botafogoTEST"
+non_relational_folder = "transformed_datasets_botafogoTEST"
+labels_path = "labelsTEST.csv"
+
+
+def preprocess_single_table(df, target_size=1024):
+    df = df.select_dtypes(include=[np.number]).fillna(0)
+    flat_array = df.to_numpy(dtype=np.float32).flatten()
+    if len(flat_array) > target_size:
+        flat_array = flat_array[:target_size]
+    else:
+        flat_array = np.pad(flat_array, (0, target_size - len(flat_array)), mode="constant")
+    flat_array = torch.tensor(flat_array, dtype=torch.float32)
+    return flat_array
+
+# Load your new relational and non-relational tables
+new_table_id = "table_103"  # Replace with your table ID
+relational_path = os.path.join(relational_folder, f"{new_table_id}.csv")
+non_relational_path = os.path.join(non_relational_folder, f"non_relational_{new_table_id}.csv")
+
+relational = pd.read_csv(relational_path)
+non_relational = pd.read_csv(non_relational_path)
+
+# Preprocess
+non_relational_tensor = preprocess_single_table(non_relational).to(device)
+
+# Add batch dimension
+non_relational_tensor = non_relational_tensor.unsqueeze(0)  # Shape: [1, 1024]
+
+# Make prediction
+with torch.no_grad():
+    output = model(non_relational_tensor)
+    _, predicted_class = torch.max(output.data, 1)
+
+print(f'Predicted Transformation Class: {predicted_class.item()}')
+
+
+# 0=pivot
+# 1=transpose
+# 2=unstack
+# 3=wide_to_long
