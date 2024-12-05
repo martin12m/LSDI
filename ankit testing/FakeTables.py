@@ -113,40 +113,6 @@
 # print("All tables have been created and saved successfully.")
 
 
-
-import os
-import pandas as pd
-import numpy as np
-import random
-from faker import Faker
-
-# Configuration parameters
-TOTAL_TABLES = 5000
-ROW_COUNT = 100  # Fixed number of rows
-COLUMN_COUNT = 100  # Fixed number of columns (including 'id')
-FOREIGN_KEY_PROBABILITY = 0.1  # 10% chance to include a foreign key
-
-# Initialize Faker for generating realistic data
-data_generator = Faker()
-
-# Define the structure of predefined columns
-PREDEFINED_COLUMNS = {
-    'id': 'int',
-    'name': 'str',
-    'age': 'int',
-    'email': 'str',
-    'address': 'str',
-    'phone': 'str',
-    'created_at': 'datetime',
-    'status': 'str',
-    'score': 'float',
-    'category': 'str',
-    'price': 'float',
-    'quantity': 'int',
-    'description': 'str',
-    'active': 'bool',
-    'rating': 'float'
-}
 import os
 import pandas as pd
 import numpy as np
@@ -178,7 +144,8 @@ PREDEFINED_COLUMNS = {
     'quantity': 'int',
     'description': 'str',
     'active': 'bool',
-    'rating': 'float'
+    'rating': 'float',
+    'Group': 'str',  # Added 'Group' to ensure compatibility
 }
 
 # Dynamically add additional columns if needed
@@ -218,6 +185,8 @@ def generate_string_data(column_name, row_count):
         return [random.choice(['active', 'inactive', 'pending']) for _ in range(row_count)]
     elif column_name == 'category':
         return [random.choice(['A', 'B', 'C', 'D']) for _ in range(row_count)]
+    elif column_name == 'Group':  # Group column explicitly
+        return [random.choice(['Group1', 'Group2', 'Group3']) for _ in range(row_count)]
     elif column_name == 'description':
         return [data_generator.text(max_nb_chars=50) for _ in range(row_count)]
     else:
