@@ -265,19 +265,19 @@ def main():
     features = combine_features(syntactic_features, semantic_embeddings)
     print("combine_features :",features.shape)
     
-    # #Normalize/Pad to 101 Cells
-    # final_features = normalize_table_features(features, target_cells=101, feature_dim=423)
+    # Normalize/Pad to 101 Cells
+    final_features = normalize_table_features(features, target_cells=101, feature_dim=423)
     
-    # print("\nFinal Input Feature Matrix (101x423):")
-    # print(final_features)
-    # print("Shape:", final_features.shape)
+    print("\nFinal Input Feature Matrix (101x423):")
+    print(final_features)
+    print("Shape:", final_features.shape)
     
-    # final_features_reshaped = final_features.reshape(-1, final_features.shape[-1])
+    final_features_reshaped = final_features.reshape(-1, final_features.shape[-1])
     
-    # # Create DataFrame to save as CSV
-    # final_features_df = pd.DataFrame(final_features_reshaped)
-    # final_features_df.to_csv('final_features.csv', index=False, header=False)
-    # print("\nFeatures saved to 'final_features.csv'.")
+    # Create DataFrame to save as CSV
+    final_features_df = pd.DataFrame(final_features_reshaped)
+    final_features_df.to_csv('final_features.csv', index=False, header=False)
+    print("\nFeatures saved to 'final_features.csv'.")
 
 if __name__ == "__main__":
     main()
