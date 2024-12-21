@@ -4,7 +4,7 @@
 import os
 import pandas as pd
 import random
-import creates_Relational_tables as create_relational_tables
+# import creates_Relational_tables as create_relational_tables
 
 
 # Transformation Functions
@@ -84,7 +84,7 @@ def generate_non_relational_table(df, table_id, transformation_log):
 
 # Process all relational tables
 def process_all_relational_tables():
-    input_folder = "relational_tables_csv"  # Folder with relational tables
+    input_folder = "relational_tables"  # Folder with relational tables
     output_folder = "transformed_datasets"  # Folder to save non-relational tables
     os.makedirs(output_folder, exist_ok=True)
 

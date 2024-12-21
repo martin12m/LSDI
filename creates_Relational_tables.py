@@ -135,7 +135,7 @@ COLUMN_TYPES = {
 }
 
 # Constants for table generation
-TOTAL_TABLES, MAX_ROWS, MAX_COLS = 200, 100, 4
+TOTAL_TABLES, MAX_ROWS, MAX_COLS = 2000, 100, 4
 FOREIGN_KEY_CHANCE = 0.0
 
 def generate_column_data(column_name, data_type, num_rows):
