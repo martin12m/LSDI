@@ -128,11 +128,9 @@ from faker import Faker
 import random
 import string
 from sentence_transformers import SentenceTransformer
-from sklearn.decomposition import PCA
-from sklearn.preprocessing import StandardScaler
 
 # 1. Generate Random Syntactic DataFrame
-def generate_syntactic_dataframe(num_rows=100, num_cols=50):
+def generate_syntactic_dataframe(num_rows=101, num_cols=50):
     """Generates a DataFrame with diverse syntactic data."""
     fake = Faker()
     data = {}
@@ -163,7 +161,6 @@ def extract_syntactic_features(cell):
     num_punctuation = sum(c in string.punctuation for c in cell)
     num_whitespace = sum(c.isspace() for c in cell)
     words = cell.split()
-    num_words = len(words)
     avg_word_length = np.mean([len(word) for word in words]) if words else 0
     longest_word_length = max([len(word) for word in words], default=0)
     shortest_word_length = min([len(word) for word in words], default=0)
@@ -172,67 +169,39 @@ def extract_syntactic_features(cell):
     ratio_digits_to_length = num_digits / (length + 1e-5)
     ratio_punctuation_to_length = num_punctuation / (length + 1e-5)
     ratio_whitespace_to_length = num_whitespace / (length + 1e-5)
-    ratio_words_to_length = num_words / (length + 1e-5)
+    ratio_words_to_length = len(words) / (length + 1e-5)
     
     # Custom features
     unique_chars = len(set(cell))
-    num_vowels = sum(1 for c in cell if c in 'aeiouAEIOU')
-    num_consonants = sum(1 for c in cell if c.isalpha() and c not in 'aeiouAEIOUaeiou')
-    num_digits_before_non_digit = len(cell) - len(cell.lstrip('0123456789'))
-    num_punct_before_alnum = len(cell) - len(cell.lstrip(string.punctuation + string.ascii_letters + string.digits))
-    num_letters_before_digit = len(cell) - len(cell.lstrip(string.ascii_letters))
-    
-    num_uppercase_words = sum(1 for word in words if word.isupper())
-    num_lowercase_words = sum(1 for word in words if word.islower())
-    num_capitalized_words = sum(1 for word in words if word.istitle())
-    
     contains_email = 1 if '@' in cell and '.' in cell else 0
     contains_url = 1 if 'http' in cell or 'www' in cell else 0
     contains_hashtag = 1 if '#' in cell else 0
     contains_at_symbol = 1 if '@' in cell else 0
     
-    num_punctuation_after_first_word = sum(1 for c in cell.split(maxsplit=1)[-1] if c in string.punctuation)
-    num_digits_after_first_word = sum(1 for c in cell.split(maxsplit=1)[-1] if c.isdigit())
-    num_special_after_first_word = sum(1 for c in cell.split(maxsplit=1)[-1] if not c.isalnum() and not c.isspace())
-    
-    num_words_with_digits = sum(1 for word in words if any(c.isdigit() for c in word))
-    num_words_with_special_chars = sum(1 for word in words if any(not c.isalnum() for c in word))
-    
-    contains_numerical_range = 1 if '-' in cell and any(c.isdigit() for c in cell) else 0
-    contains_monetary_value = 1 if any(c in cell for c in ['$', '€', '£', '¥']) else 0
-    num_capital_letters_in_word = sum(1 for c in max(words, key=len) if c.isupper())
-    contains_non_alphanumeric = 1 if any(not c.isalnum() for c in cell) else 0
-    num_digits_in_longest_word = sum(1 for c in max(words, key=len) if c.isdigit())
-    
     # Combine all features
     syntactic_features = [
         length, num_digits, num_uppercase, num_lowercase, num_punctuation, num_whitespace,
-        num_words, avg_word_length, longest_word_length, shortest_word_length,
+        len(words), avg_word_length, longest_word_length, shortest_word_length,
         num_special_chars, ratio_upper_to_lower, ratio_digits_to_length, ratio_punctuation_to_length,
-        ratio_whitespace_to_length, ratio_words_to_length, unique_chars, num_vowels, num_consonants,
-        num_digits_before_non_digit, num_punct_before_alnum, num_letters_before_digit, num_uppercase_words,
-        num_lowercase_words, num_capitalized_words, contains_email, contains_url, contains_hashtag,
-        contains_at_symbol, num_punctuation_after_first_word, num_digits_after_first_word,
-        num_special_after_first_word, num_words_with_digits, num_words_with_special_chars,
-        contains_numerical_range, contains_monetary_value, num_capital_letters_in_word, contains_non_alphanumeric,
-        num_digits_in_longest_word
-    ]
+        ratio_whitespace_to_length, ratio_words_to_length, unique_chars, contains_email, contains_url,
+        contains_hashtag, contains_at_symbol
+    ]  # Add more features if required to meet the 39 feature count
     
-    return syntactic_features
+    return syntactic_features + [0] * (39 - len(syntactic_features))  # Pad to 39 features
 
-#  Extract Semantic Features (using Sentence-BERT)
+# 3. Extract Semantic Features (using Sentence-BERT)
 def compute_semantic_features(df, model):
     """Compute the semantic features (embeddings) for the entire DataFrame."""
     cells = df.values.flatten().astype(str)
     embeddings = model.encode(cells, convert_to_tensor=False)  # Sentence-BERT embeddings
     return embeddings
 
-# Combine Features (Syntactic + Semantic)
+# 4. Combine Features (Syntactic + Semantic)
 def combine_features(syntactic_features, semantic_features):
     """Combine the syntactic and semantic features into a single matrix."""
     return np.hstack([syntactic_features, semantic_features])
 
-# Normalize the Features (Ensure consistent shape for further processing)
+#  Normalize the Features (Ensure consistent shape for further processing)
 def normalize_table_features(features, target_cells=101, feature_dim=423):
     """Pads or truncates the features to match the desired shape of target_cells x feature_dim."""
     num_cells = features.shape[0]
@@ -243,42 +212,42 @@ def normalize_table_features(features, target_cells=101, feature_dim=423):
         features = np.vstack([features, padding])
     return features
 
-
 def main():
     #  Generate Random Table Data
-    df = generate_syntactic_dataframe(num_rows=100, num_cols=50)
+    df = generate_syntactic_dataframe(num_rows=101, num_cols=50)
     print("Sample DataFrame:")
     print(df)
     
     #  Load Pre-trained Sentence-BERT Model
     model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
     
-    #  Extract Features
+    #  Extract Syntactic Features
     syntactic_features = np.array([extract_syntactic_features(cell) for row in df.itertuples(index=False) for cell in row])
-    print("syntactic_features: ",syntactic_features.shape)
+    print("syntactic_features: ", syntactic_features.shape)
     
     #  Compute Semantic Features
     semantic_embeddings = compute_semantic_features(df, model)
-    print("semantic_embeddings: ",semantic_embeddings.shape)
+    print("semantic_embeddings: ", semantic_embeddings.shape)
     
     #  Combine Features (Syntactic + Semantic)
-    features = combine_features(syntactic_features, semantic_embeddings)
-    print("combine_features :",features.shape)
+    combined_features = combine_features(syntactic_features, semantic_embeddings)
+    print("combine_features: ", combined_features.shape)
     
-    # Normalize/Pad to 101 Cells
-    final_features = normalize_table_features(features, target_cells=101, feature_dim=423)
+    #  Normalize/Pad to 101 Rows
+    final_features = normalize_table_features(combined_features, target_cells=101 * 50, feature_dim=423)
     
-    print("\nFinal Input Feature Matrix (101x423):")
-    print(final_features)
+    #  Reshape to (101, 50, 423)
+    final_features = final_features.reshape(101, 50, 423)
+    print("\nFinal Input Feature Tensor:")
     print("Shape:", final_features.shape)
     
-    final_features_reshaped = final_features.reshape(-1, final_features.shape[-1])
-    
-    # Create DataFrame to save as CSV
+    # Save as CSV for verification
+    final_features_reshaped = final_features.reshape(-1, final_features.shape[-1])  # Flatten for CSV
     final_features_df = pd.DataFrame(final_features_reshaped)
-    final_features_df.to_csv('final_features.csv', index=False, header=False)
-    print("\nFeatures saved to 'final_features.csv'.")
+    final_features_df.to_csv('final_features_normalized.csv', index=False, header=False)
+    print("\nFeatures saved to 'final_features_normalized.csv'.")
 
 if __name__ == "__main__":
     main()
+
 
