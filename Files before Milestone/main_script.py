@@ -26,6 +26,8 @@ def unstack_table(df):
     
     return melted_df
 
+
+
 def transpose_table_inverse(df):
     """Transpose rows to columns (reversible operation)."""
     return df.T.reset_index()

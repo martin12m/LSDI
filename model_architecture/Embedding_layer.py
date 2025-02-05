@@ -1,5 +1,3 @@
-
-
 import torch
 import torch.nn as nn
 import pandas as pd
@@ -164,131 +162,14 @@ def resize_dataframe(df, target_rows=101, target_cols=50, reference_columns=None
     except Exception as e:
         print(f"⚠ Error during resizing: {e}")
         return df, reference_columns
-    
-
-class DimensionReductionLayer(nn.Module):
-    def __init__(self, in_channels=423, mid_channels=64, out_channels=32, num_oprators=4, sequence_length=None):
-        super(DimensionReductionLayer, self).__init__()
-        self.conv1 = nn.Conv2d(in_channels, mid_channels, kernel_size=1)
-        self.batch_norm1 = nn.BatchNorm2d(mid_channels)
-        self.conv2 = nn.Conv2d(mid_channels, out_channels, kernel_size=1, stride=1)
-        self.batch_norm2 = nn.BatchNorm2d(out_channels)
-        self.activation = nn.ReLU()
-
-    def forward(self, x):
-        x = self.activation(self.batch_norm1(self.conv1(x)))
-        x = self.activation(self.batch_norm2(self.conv2(x)))
-        return x
 
 
-class FeatureExtractionLayer(nn.Module):
-    def __init__(self):
-        super(FeatureExtractionLayer, self).__init__()
-
-        # Header Processing Path (32 → 8)
-        self.header_conv = nn.Conv1d(32, 8, kernel_size=1)  # 32 → 8
-        self.header_activation = nn.ReLU()
-
-        # Column Processing Path (32 → 64 → 8)
-        self.column_conv1 = nn.Conv1d(32, 64, kernel_size=1)  # 32 → 64
-        self.column_activation1 = nn.ReLU()
-        self.column_conv2 = nn.Conv1d(64, 8, kernel_size=1)   # 64 → 8
-        self.column_activation2 = nn.ReLU()
-        self.column_pool = nn.AdaptiveMaxPool1d(50)  # Dynamic Pooling
-
-        # Row Processing Path (32 → 64 → 8)
-        self.row_conv1 = nn.Conv1d(32, 64, kernel_size=1)  # 32 → 64
-        self.row_activation1 = nn.ReLU()
-        self.row_conv2 = nn.Conv1d(64, 8, kernel_size=1)   # 64 → 8
-        self.row_activation2 = nn.ReLU()
-        self.row_pool = nn.AdaptiveMaxPool1d(100)  # Dynamic Pooling
-
-        # Flattening
-        self.flatten = nn.Flatten()
-
-    def forward(self, x):
-        print(f"Before Processing in FeatureExtractionLayer: {x.shape}")
-
-        batch_size, channels, height, width = x.shape
-
-        # Header Processing
-        header = x[:, :, :, 0]
-        print(f"Header Shape Before Conv1D: {header.shape}")
-        header = header.permute(0, 1, 2)
-        print(f"Header Shape after permunation: {header.shape}")  
-        header = self.header_activation(self.header_conv(header))  
-        print(f"Header Shape After Conv1D: {header.shape}")  
-
-        # Column Processing
-        columns = x.permute(0, 2, 3, 1) 
-        print(f"Column Shape Before Flattening: {columns.shape}") 
-        columns = columns.reshape(batch_size, 32, height*width)
-        print(f"Column Shape Before Conv1D: {columns.shape}")
-
-        columns = self.column_activation1(self.column_conv1(columns))
-        columns = self.column_activation2(self.column_conv2(columns))
-        columns = self.column_pool(columns)
-        print(f"Column Shape After Conv1D: {columns.shape}")
-
-        # Row Processing
-        rows = x.permute(0, 1, 3, 2)
-        print(f"Row Shape Before Flattening: {rows.shape}")  
-        rows = rows.reshape(batch_size, 32, height*width)
-        print(f"Row Shape Before Conv1D: {rows.shape}")
-
-        rows = self.row_activation1(self.row_conv1(rows))
-        rows = self.row_activation2(self.row_conv2(rows))
-        rows = self.row_pool(rows)
-        print(f"Row Shape After Conv1D: {rows.shape}")
-
-        # Feature Combination
-        combined_features = torch.cat([header, columns, rows], dim=2)
-        print(f"Combined Features Shape Before Flattening: {combined_features.shape}")
-
-        # Flatten
-        output_features = self.flatten(combined_features)
-        print(f"Extracted Features Shape: {output_features.shape}")
-
-        return output_features
-
-
-class OutputLayer(nn.Module):
-    def __init__(self, input_dim, output_dim=2):  # Only 2 operators: unstack & transpose
-        super(OutputLayer, self).__init__()
-
-        # Fully connected layers with dropout to prevent overfitting
-        self.fc1 = nn.Linear(input_dim, 512)
-        self.activation1 = nn.ReLU()
-        self.dropout1 = nn.Dropout(p=0.3)
-
-        self.fc2 = nn.Linear(512, 128)
-        self.activation2 = nn.ReLU()
-        self.dropout2 = nn.Dropout(p=0.3)
-
-        self.fc3 = nn.Linear(128, output_dim)  # Final output for 2 operators
-
-    def forward(self, x):
-        print(f"Before Passing Through Output Layer: {x.shape}")  # Debugging print
-
-        x = self.activation1(self.fc1(x))
-        x = self.dropout1(x)
-
-        x = self.activation2(self.fc2(x))
-        x = self.dropout2(x)
-
-        x = self.fc3(x)  # Final logits (no activation, handled externally)
-
-        print(f"Output Layer Shape: {x.shape}")  # Debugging print
-        return x
-
-# ---- Main Prediction Pipeline ----
 def main():
-    # Generate relational table
 
+    # Load relational Table
     relational_data = pd.read_csv("California_Houses.csv")
-    # non_relational_table, operator_name  = apply_random_inverse_operator(relational_data)
-    # print(f"Applied random inverse operator: {operator_name}")
     
+    # Apply a random inverse operator to the relational table
     non_relational_table, operator_name = apply_random_inverse_operator(relational_data)
     print(f"Applied random inverse operator: {operator_name}")
     
@@ -320,53 +201,7 @@ def main():
     # Create feature tensor
     final_features = np.stack(all_features)
     print(f"Feature Tensor Shape: {final_features.shape}")
-
-    # Dimension Reduction Layer
-    input_tensor = torch.rand(final_features.shape)
-    n, m, d = input_tensor.shape  # (n, m, d)
-    input_tensor = torch.tensor(final_features, dtype=torch.float32).unsqueeze(0)
-    input_tensor_reshaped = input_tensor.permute(0, 3, 1, 2)
-    print(f"Input Tensor Shape: {input_tensor_reshaped.shape}")
-    batch_size, in_channels, height, width = input_tensor_reshaped.shape
-    dim_reduction_layer = DimensionReductionLayer(in_channels=in_channels, mid_channels=64, out_channels=32)
-    output_tensor = dim_reduction_layer(input_tensor_reshaped)
-    print(f"Output Tensor Shape: {output_tensor.shape}")
     
-    #Feature Extraction Layer
-    input_reduced_tensor = torch.rand(output_tensor.shape)
-    input_reduced_tensor = output_tensor.permute(0, 1, 3, 2)
-    print(f"Input Reduced Tensor Shape: {input_reduced_tensor.shape}")
-    feature_extraction = FeatureExtractionLayer()
-    features = feature_extraction(input_reduced_tensor)
-    print("Extracted Features Shape:", features.shape)
-    
-    
-    print(f"Extracted Features values: {features[0, :20]}")
-
-
-    # *Calculate input dimension for OutputLayer*
-    input_dim = features.shape[1]  
-    print(f"Input Dimension for Output Layer: {input_dim}")
-
-    # *Initialize the Output Layer for 2 classes*
-    output_layer = OutputLayer(input_dim=input_dim, output_dim=2)  # Only 2 operators
-
-    # *Pass extracted features through Output Layer*
-    logits = output_layer(features)
-
-    # *Convert logits to probabilities using softmax*
-    operator_probs = torch.softmax(logits, dim=1)
-    print(f"Softmax probabilities: {operator_probs.tolist()}")
-
-    # *Get predicted operator index*
-    predicted_operator_idx = torch.argmax(operator_probs, dim=1)
-
-    # *Define the two operator classes*
-    operators = ["unstack", "transpose"]  # Only 2 classes
-    predicted_operator = [operators[i] for i in predicted_operator_idx.tolist()]
-
-    print(f"Predicted Operator: {predicted_operator}")
 
 if __name__ == "__main__":
     main()
-
