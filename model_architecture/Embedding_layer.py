@@ -6,7 +6,6 @@ import random
 import string
 from sentence_transformers import SentenceTransformer
 
-
 # ---- Operators and Inverse Operators ----
 def unstack_dataframe(df):
     try:
@@ -27,6 +26,7 @@ def unstack_dataframe(df):
     except Exception as e:
         print(f"Error during unstacking: {e}")
         return df
+
 def transpose_dataframe_inverse(df):
     try:
         print("\n🛠 Debug: Transposing DataFrame...")
@@ -54,6 +54,7 @@ def apply_random_inverse_operator(df):
     operator_name = random.choice(list(operators.keys()))
     transformed_df = operators[operator_name](df)
     return transformed_df, operator_name
+
 # ---- Feature Extraction ----
 def extract_syntactic_features(cell):
     if not isinstance(cell, str):
@@ -119,53 +120,49 @@ def combine_features_for_row(row, model):
     return np.array(combined_row_features)
 
 
-def resize_dataframe(df, target_rows=101, target_cols=50, reference_columns=None):
+
+def resize_dataframe(df, target_rows=101, target_cols=50):
     try:
         print("\n🛠 Debug: Resizing DataFrame...")
 
-        original_columns = df.columns.tolist()
-
-        # *Convert all values to numeric, replacing non-numeric with NaN*
+        # Convert all values to numeric, replacing non-numeric with NaN
         df_numeric = df.apply(pd.to_numeric, errors='coerce')
 
-        # *Flatten values and remove NaNs*
+        # Flatten values and remove NaNs
         values = df_numeric.values.flatten()
-        values = values[~np.isnan(values)]  # ✅ Ensure only numeric values remain
+        values = values[~np.isnan(values)]  # Ensure only numeric values remain
 
         total_values = target_rows * target_cols
 
-        # *Adjust number of values dynamically*
+        # Adjust number of values dynamically
         if len(values) > total_values:
+            # Truncate excess values
             values = values[:total_values]
         elif len(values) < total_values:
+            # Pad with repeated values
             extra_needed = total_values - len(values)
             repeated_values = np.tile(values, (extra_needed // len(values)) + 1)[:extra_needed]
             values = np.concatenate([values, repeated_values])
 
-        # *Create resized dataframe*
+        # Create resized dataframe
         resized_df = pd.DataFrame(values.reshape(target_rows, target_cols))
 
-        # *Maintain reference column names*
-        if reference_columns is None:
-            if len(original_columns) >= target_cols:
-                resized_df.columns = original_columns[:target_cols]
-            else:
-                new_columns = original_columns + [f"Extra_Feature_{i+1}" for i in range(target_cols - len(original_columns))]
-                resized_df.columns = new_columns
-            reference_columns = resized_df.columns.tolist()
+        # Maintain original column names if possible
+        if len(df.columns) >= target_cols:
+            resized_df.columns = df.columns[:target_cols]
         else:
-            resized_df.columns = reference_columns
+            # Add placeholder column names
+            new_columns = list(df.columns) + [f"Extra_Feature_{i+1}" for i in range(target_cols - len(df.columns))]
+            resized_df.columns = new_columns
 
         print(f"✅ Resized DataFrame Shape: {resized_df.shape}")
-        return resized_df, reference_columns
+        return resized_df
 
     except Exception as e:
         print(f"⚠ Error during resizing: {e}")
-        return df, reference_columns
-
-
+        return df, resized_df
+    
 def main():
-
     # Load relational Table
     relational_data = pd.read_csv("California_Houses.csv")
     
@@ -180,7 +177,7 @@ def main():
         print("Transformed table is empty. Exiting.")
         return
 
-    resized_df, saved_columns = resize_dataframe(non_relational_table)
+    resized_df = resize_dataframe(non_relational_table)
     resized_df.to_csv('resized_table.csv', index=False)
     print(f"Shape of resized table: {resized_df.shape}")
     
@@ -200,8 +197,8 @@ def main():
 
     # Create feature tensor
     final_features = np.stack(all_features)
+    print(final_features[:20])
     print(f"Feature Tensor Shape: {final_features.shape}")
-    
 
 if __name__ == "__main__":
     main()
