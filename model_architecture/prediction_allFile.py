@@ -121,22 +121,22 @@ def combine_features_for_row(row, model):
     return np.array(combined_row_features)
 
 
-def resize_dataframe(df, target_rows=101, target_cols=50, reference_columns=None):
+def resize_dataframe(df, target_rows=101, target_cols=4, reference_columns=None):
     try:
         print("\n🛠 Debug: Resizing DataFrame...")
 
         original_columns = df.columns.tolist()
 
-        # *Convert all values to numeric, replacing non-numeric with NaN*
+        # Convert all values to numeric, replacing non-numeric with NaN
         df_numeric = df.apply(pd.to_numeric, errors='coerce')
 
-        # *Flatten values and remove NaNs*
+        # Flatten values and remove NaNs
         values = df_numeric.values.flatten()
         values = values[~np.isnan(values)]  # ✅ Ensure only numeric values remain
 
         total_values = target_rows * target_cols
 
-        # *Adjust number of values dynamically*
+        # Adjust number of values dynamically
         if len(values) > total_values:
             values = values[:total_values]
         elif len(values) < total_values:
@@ -144,10 +144,10 @@ def resize_dataframe(df, target_rows=101, target_cols=50, reference_columns=None
             repeated_values = np.tile(values, (extra_needed // len(values)) + 1)[:extra_needed]
             values = np.concatenate([values, repeated_values])
 
-        # *Create resized dataframe*
+        # Create resized dataframe
         resized_df = pd.DataFrame(values.reshape(target_rows, target_cols))
 
-        # *Maintain reference column names*
+        # Maintain reference column names
         if reference_columns is None:
             if len(original_columns) >= target_cols:
                 resized_df.columns = original_columns[:target_cols]
@@ -182,102 +182,134 @@ class DimensionReductionLayer(nn.Module):
 
 
 class FeatureExtractionLayer(nn.Module):
-    def __init__(self):
+    def __init__(self, in_channels=32, mid_channels=64, out_channels=8):
         super(FeatureExtractionLayer, self).__init__()
 
-        # Header Processing Path (32 → 8)
-        self.header_conv = nn.Conv1d(32, 8, kernel_size=1)  # 32 → 8
-        self.header_activation = nn.ReLU()
+        # ==== Column Feature Extraction ====
+        self.conv1x1_col1 = nn.Conv2d(in_channels, mid_channels, kernel_size=(1, 1))
+        self.conv1x2_col1 = nn.Conv2d(in_channels, mid_channels, kernel_size=(1, 2), padding=(0, 1))
+        self.avgpool_col1 = nn.AvgPool2d(kernel_size=(100, 1), stride=(100, 1))  # Pool entire column
 
-        # Column Processing Path (32 → 64 → 8)
-        self.column_conv1 = nn.Conv1d(32, 64, kernel_size=1)  # 32 → 64
-        self.column_activation1 = nn.ReLU()
-        self.column_conv2 = nn.Conv1d(64, 8, kernel_size=1)   # 64 → 8
-        self.column_activation2 = nn.ReLU()
-        self.column_pool = nn.AdaptiveMaxPool1d(50)  # Dynamic Pooling
+        self.conv1x1_col2 = nn.Conv2d(mid_channels, out_channels, kernel_size=(1, 1))
+        self.conv1x2_col2 = nn.Conv2d(mid_channels, out_channels, kernel_size=(1, 2), padding=(0, 1))
 
-        # Row Processing Path (32 → 64 → 8)
-        self.row_conv1 = nn.Conv1d(32, 64, kernel_size=1)  # 32 → 64
-        self.row_activation1 = nn.ReLU()
-        self.row_conv2 = nn.Conv1d(64, 8, kernel_size=1)   # 64 → 8
-        self.row_activation2 = nn.ReLU()
-        self.row_pool = nn.AdaptiveMaxPool1d(100)  # Dynamic Pooling
+        # ==== Row Feature Extraction ====
+        self.conv1x1_row1 = nn.Conv2d(in_channels, mid_channels, kernel_size=(1, 1))
+        self.conv1x2_row1 = nn.Conv2d(in_channels, mid_channels, kernel_size=(2, 1), padding=(1, 0))
+        self.avgpool_row1 = nn.AvgPool2d(kernel_size=(1, 4), stride=(1, 4))  # ✅ Fix: Pooling ensures 100 rows
 
-        # Flattening
-        self.flatten = nn.Flatten()
+        self.conv1x1_row2 = nn.Conv2d(mid_channels, out_channels, kernel_size=(1, 1))
+        self.conv1x2_row2 = nn.Conv2d(mid_channels, out_channels, kernel_size=(2, 1), padding=(1, 0))
+
+        # ==== Header Feature Extraction ====
+        self.conv1x1_header = nn.Conv2d(in_channels, out_channels, kernel_size=(1, 1))
+
+        self.activation = nn.ReLU()
 
     def forward(self, x):
-        print(f"Before Processing in FeatureExtractionLayer: {x.shape}")
+        batch_size, _, height, width = x.shape
 
-        batch_size, channels, height, width = x.shape
+        # ====== Header Extraction ======
+        header = x[:, :, 0:1, :]  # ✅ Extract first row
+        x = x[:, :, 1:, :]
+        header_features = self.activation(self.conv1x1_header(header))  # ✅ Apply `1×1` filter
+        print(f"Header Shape: {header_features.shape}")
 
-        # Header Processing
-        header = x[:, :, :, 0]
-        print(f"Header Shape Before Conv1D: {header.shape}")
-        header = header.permute(0, 1, 2)
-        print(f"Header Shape after permunation: {header.shape}")  
-        header = self.header_activation(self.header_conv(header))  
-        print(f"Header Shape After Conv1D: {header.shape}")  
+        # ====== Column Feature Extraction ======
+        global_col1 = self.activation(self.conv1x1_col1(x))  
+        local_col1 = self.activation(self.conv1x2_col1(x))   
 
-        # Column Processing
-        columns = x.permute(0, 2, 3, 1) 
-        print(f"Column Shape Before Flattening: {columns.shape}") 
-        columns = columns.reshape(batch_size, 32, height*width)
-        print(f"Column Shape Before Conv1D: {columns.shape}")
+        # ✅ Fix width mismatch (1×2 conv may add +1 width)
+        min_width = min(global_col1.shape[3], local_col1.shape[3])
+        global_col1 = global_col1[:, :, :, :min_width]
+        local_col1 = local_col1[:, :, :, :min_width]
 
-        columns = self.column_activation1(self.column_conv1(columns))
-        columns = self.column_activation2(self.column_conv2(columns))
-        columns = self.column_pool(columns)
-        print(f"Column Shape After Conv1D: {columns.shape}")
+        global_col1_pooled = self.avgpool_col1(global_col1)  
+        local_col1_pooled = self.avgpool_col1(local_col1)    
 
-        # Row Processing
-        rows = x.permute(0, 1, 3, 2)
-        print(f"Row Shape Before Flattening: {rows.shape}")  
-        rows = rows.reshape(batch_size, 32, height*width)
-        print(f"Row Shape Before Conv1D: {rows.shape}")
+        column_features1 = global_col1_pooled + local_col1_pooled  
 
-        rows = self.row_activation1(self.row_conv1(rows))
-        rows = self.row_activation2(self.row_conv2(rows))
-        rows = self.row_pool(rows)
-        print(f"Row Shape After Conv1D: {rows.shape}")
+        global_col2 = self.activation(self.conv1x1_col2(column_features1))  
+        local_col2 = self.activation(self.conv1x2_col2(column_features1))   
 
-        # Feature Combination
-        combined_features = torch.cat([header, columns, rows], dim=2)
-        print(f"Combined Features Shape Before Flattening: {combined_features.shape}")
+        min_width2 = min(global_col2.shape[3], local_col2.shape[3])
+        global_col2 = global_col2[:, :, :, :min_width2]
+        local_col2 = local_col2[:, :, :, :min_width2]
 
-        # Flatten
-        output_features = self.flatten(combined_features)
-        print(f"Extracted Features Shape: {output_features.shape}")
+        column_features2 = global_col2 + local_col2  # ✅ Now column shape is `8 × 50`
+        print(f"Column Features Shape: {column_features2.shape}")
 
-        return output_features
+        # ====== Row Feature Extraction ======
+        global_row1 = self.activation(self.conv1x1_row1(x))  
+        local_row1 = self.activation(self.conv1x2_row1(x))   
+
+        # ✅ Fix height mismatch (2×1 conv may add +1 height)
+        min_height = min(global_row1.shape[2], local_row1.shape[2])
+        global_row1 = global_row1[:, :, :min_height, :]
+        local_row1 = local_row1[:, :, :min_height, :]
+
+        global_row1_pooled = self.avgpool_row1(global_row1)  
+        local_row1_pooled = self.avgpool_row1(local_row1)    
+
+        row_features1 = global_row1_pooled + local_row1_pooled  
+
+        global_row2 = self.activation(self.conv1x1_row2(row_features1))  
+        local_row2 = self.activation(self.conv1x2_row2(row_features1))   
+
+        min_height2 = min(global_row2.shape[2], local_row2.shape[2])
+        global_row2 = global_row2[:, :, :min_height2, :]
+        local_row2 = local_row2[:, :, :min_height2, :]
+
+        row_features2 = global_row2 + local_row2  # ✅ Now row shape is `8 × 100`
+        print(f"Row Features Shape (Expected 800): {row_features2.shape}")
+
+        # ====== Flatten and Combine Features ======
+        column_features_flat = column_features2.reshape(batch_size, -1)  # (1, 8 * 50 = 400)
+        print(f"Column Features Shape (Expected 400): {column_features_flat.shape}")
+        row_features_flat = row_features2.reshape(batch_size, -1)        # (1, 8 * 100 = 800)
+        print(f"row_features_flat.shape", row_features_flat.shape)
+        header_features_flat = header_features.reshape(batch_size, -1)   # (1, 8 * 50 = 400)
+        print(f"Header Features Shape (Expected 400): {header_features_flat.shape}")
+
+        combined_features = torch.cat([column_features_flat, row_features_flat, header_features_flat], dim=1)
+
+        return combined_features
 
 
 class OutputLayer(nn.Module):
     def __init__(self, input_dim, output_dim=2):  # Only 2 operators: unstack & transpose
         super(OutputLayer, self).__init__()
 
-        # Fully connected layers with dropout to prevent overfitting
-        self.fc1 = nn.Linear(input_dim, 512)
-        self.activation1 = nn.ReLU()
-        self.dropout1 = nn.Dropout(p=0.3)
+        # # Fully connected layers with dropout to prevent overfitting
+        # self.fc1 = nn.Linear(input_dim, 512)
+        # self.activation1 = nn.ReLU()
+        # self.dropout1 = nn.Dropout(p=0.3)
 
-        self.fc2 = nn.Linear(512, 128)
-        self.activation2 = nn.ReLU()
-        self.dropout2 = nn.Dropout(p=0.3)
+        # self.fc2 = nn.Linear(512, 128)
+        # self.activation2 = nn.ReLU()
+        # self.dropout2 = nn.Dropout(p=0.3)
 
-        self.fc3 = nn.Linear(128, output_dim)  # Final output for 2 operators
+        # self.fc3 = nn.Linear(128, output_dim)  # Final output for 2 operators
+                # Fully Connected Layers
+        self.fc1 = nn.Linear(input_dim, 512)  # First fully connected layer
+        self.fc2 = nn.Linear(512, output_dim)  # Second fully connected layer
+        
+        # Activation Function
+        self.activation = nn.ReLU()
 
     def forward(self, x):
         print(f"Before Passing Through Output Layer: {x.shape}")  # Debugging print
 
-        x = self.activation1(self.fc1(x))
-        x = self.dropout1(x)
+        # x = self.activation1(self.fc1(x))
+        # x = self.dropout1(x)
 
-        x = self.activation2(self.fc2(x))
-        x = self.dropout2(x)
+        # x = self.activation2(self.fc2(x))
+        # x = self.dropout2(x)
 
-        x = self.fc3(x)  # Final logits (no activation, handled externally)
-
+        # x = self.fc3(x)  # Final logits (no activation, handled externally)
+        x = self.fc1(x)  # First fully connected layer
+        x = self.activation(x)  # Activation
+        x = self.fc2(x)
         print(f"Output Layer Shape: {x.shape}")  # Debugging print
         return x
 
@@ -285,7 +317,7 @@ class OutputLayer(nn.Module):
 def main():
     # Generate relational table
 
-    relational_data = pd.read_csv("California_Houses.csv")
+    relational_data = pd.read_csv("diabetes_train.csv")
     # non_relational_table, operator_name  = apply_random_inverse_operator(relational_data)
     # print(f"Applied random inverse operator: {operator_name}")
     
@@ -334,38 +366,35 @@ def main():
     
     #Feature Extraction Layer
     input_reduced_tensor = torch.rand(output_tensor.shape)
-    input_reduced_tensor = output_tensor.permute(0, 1, 3, 2)
+    input_reduced_tensor = output_tensor.permute(0, 1, 2, 3)
     print(f"Input Reduced Tensor Shape: {input_reduced_tensor.shape}")
-    feature_extraction = FeatureExtractionLayer()
-    features = feature_extraction(input_reduced_tensor)
-    print("Extracted Features Shape:", features.shape)
+    feature_extractor = FeatureExtractionLayer()
+    output = feature_extractor(input_reduced_tensor)
+    print("✅ Final Output Shape:", output.shape)  
     
-    
-    print(f"Extracted Features values: {features[0, :20]}")
-
 
     # *Calculate input dimension for OutputLayer*
-    input_dim = features.shape[1]  
+    input_dim = output.shape[1]  
     print(f"Input Dimension for Output Layer: {input_dim}")
 
     # *Initialize the Output Layer for 2 classes*
-    output_layer = OutputLayer(input_dim=input_dim, output_dim=2)  # Only 2 operators
+    output_layer = OutputLayer(input_dim=input_dim, output_dim=2)
 
     # *Pass extracted features through Output Layer*
-    logits = output_layer(features)
+    logits = output_layer(output)
+
 
     # *Convert logits to probabilities using softmax*
-    operator_probs = torch.softmax(logits, dim=1)
-    print(f"Softmax probabilities: {operator_probs.tolist()}")
+    operator_probs = torch.softmax(logits, dim=1).detach().cpu().numpy().tolist()
+    print(f"Softmax probabilities: {operator_probs}")
 
-    # *Get predicted operator index*
-    predicted_operator_idx = torch.argmax(operator_probs, dim=1)
 
-    # *Define the two operator classes*
-    operators = ["unstack", "transpose"]  # Only 2 classes
-    predicted_operator = [operators[i] for i in predicted_operator_idx.tolist()]
-
+    operators = ["unstack", "transpose"]
+    predicted_operator_idx = torch.argmax(logits, dim=1).tolist()
+    predicted_operator = [operators[i] for i in predicted_operator_idx]
     print(f"Predicted Operator: {predicted_operator}")
+    print(f"Actual operator: {operator_name}")
+    
 
 if __name__ == "__main__":
     main()
