@@ -121,7 +121,7 @@ def combine_features_for_row(row, model):
     return np.array(combined_row_features)
 
 
-def resize_dataframe(df, target_rows=101, target_cols=4, reference_columns=None):
+def resize_dataframe(df, target_rows=101, target_cols=50, reference_columns=None):
     try:
         print("\n🛠 Debug: Resizing DataFrame...")
 
@@ -196,7 +196,7 @@ class FeatureExtractionLayer(nn.Module):
         # ==== Row Feature Extraction ====
         self.conv1x1_row1 = nn.Conv2d(in_channels, mid_channels, kernel_size=(1, 1))
         self.conv1x2_row1 = nn.Conv2d(in_channels, mid_channels, kernel_size=(2, 1), padding=(1, 0))
-        self.avgpool_row1 = nn.AvgPool2d(kernel_size=(1, 4), stride=(1, 4))  # ✅ Fix: Pooling ensures 100 rows
+        self.avgpool_row1 = nn.AvgPool2d(kernel_size=(1, 50), stride=(1, 50))  # ✅ Fix: Pooling ensures 100 rows
 
         self.conv1x1_row2 = nn.Conv2d(mid_channels, out_channels, kernel_size=(1, 1))
         self.conv1x2_row2 = nn.Conv2d(mid_channels, out_channels, kernel_size=(2, 1), padding=(1, 0))
