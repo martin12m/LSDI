@@ -120,9 +120,9 @@ import random
 from faker import Faker
 
 # Configuration parameters
-TOTAL_TABLES = 1
-ROW_COUNT = 100  # Fixed number of rows
-COLUMN_COUNT = 50  # Fixed number of columns (including 'id')
+TOTAL_TABLES = 10
+ROW_COUNT = 200  # Fixed number of rows
+COLUMN_COUNT = 10  # Fixed number of columns (including 'id')
 FOREIGN_KEY_PROBABILITY = 0.1  # 10% chance to include a foreign key
 
 # Initialize Faker for generating realistic data

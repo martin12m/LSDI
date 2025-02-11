@@ -121,51 +121,82 @@ def combine_features_for_row(row, model):
     return np.array(combined_row_features)
 
 
-def resize_dataframe(df, target_rows=101, target_cols=50, reference_columns=None):
+# def resize_dataframe(df, target_rows=101, target_cols=50, reference_columns=None):
+#     try:
+#         print("\n🛠 Debug: Resizing DataFrame...")
+
+#         original_columns = df.columns.tolist()
+
+#         # Convert all values to numeric, replacing non-numeric with NaN
+#         df_numeric = df.apply(pd.to_numeric, errors='coerce')
+
+#         # Flatten values and remove NaNs
+#         values = df_numeric.values.flatten()
+#         values = values[~np.isnan(values)]  # ✅ Ensure only numeric values remain
+
+#         total_values = target_rows * target_cols
+
+#         # Adjust number of values dynamically
+#         if len(values) > total_values:
+#             values = values[:total_values]
+#         elif len(values) < total_values:
+#             extra_needed = total_values - len(values)
+#             repeated_values = np.tile(values, (extra_needed // len(values)) + 1)[:extra_needed]
+#             values = np.concatenate([values, repeated_values])
+
+#         # Create resized dataframe
+#         resized_df = pd.DataFrame(values.reshape(target_rows, target_cols))
+
+#         # Maintain reference column names
+#         if reference_columns is None:
+#             if len(original_columns) >= target_cols:
+#                 resized_df.columns = original_columns[:target_cols]
+#             else:
+#                 new_columns = original_columns + [f"Extra_Feature_{i+1}" for i in range(target_cols - len(original_columns))]
+#                 resized_df.columns = new_columns
+#             reference_columns = resized_df.columns.tolist()
+#         else:
+#             resized_df.columns = reference_columns
+
+#         print(f"✅ Resized DataFrame Shape: {resized_df.shape}")
+#         return resized_df, reference_columns
+
+#     except Exception as e:
+#         print(f"⚠ Error during resizing: {e}")
+#         return df, reference_columns
+    
+def resize_dataframe(df, target_rows=101, target_cols=50):
+
     try:
         print("\n🛠 Debug: Resizing DataFrame...")
 
-        original_columns = df.columns.tolist()
+        # Calculate how many rows/columns to keep
+        num_rows, num_cols = df.shape
 
-        # Convert all values to numeric, replacing non-numeric with NaN
-        df_numeric = df.apply(pd.to_numeric, errors='coerce')
+        # If too many rows, slice it down
+        if num_rows > target_rows:
+            df = df.iloc[:target_rows, :]
+        # If too few rows, repeat existing rows
+        elif num_rows < target_rows:
+            repeat_factor = (target_rows // num_rows) + 1
+            df = pd.concat([df] * repeat_factor, ignore_index=True).iloc[:target_rows, :]
 
-        # Flatten values and remove NaNs
-        values = df_numeric.values.flatten()
-        values = values[~np.isnan(values)]  # ✅ Ensure only numeric values remain
+        # If too many columns, slice it down
+        if num_cols > target_cols:
+            df = df.iloc[:, :target_cols]
+        # If too few columns, repeat existing columns
+        elif num_cols < target_cols:
+            repeat_factor = (target_cols // num_cols) + 1
+            df = pd.concat([df] * repeat_factor, axis=1).iloc[:, :target_cols]
 
-        total_values = target_rows * target_cols
-
-        # Adjust number of values dynamically
-        if len(values) > total_values:
-            values = values[:total_values]
-        elif len(values) < total_values:
-            extra_needed = total_values - len(values)
-            repeated_values = np.tile(values, (extra_needed // len(values)) + 1)[:extra_needed]
-            values = np.concatenate([values, repeated_values])
-
-        # Create resized dataframe
-        resized_df = pd.DataFrame(values.reshape(target_rows, target_cols))
-
-        # Maintain reference column names
-        if reference_columns is None:
-            if len(original_columns) >= target_cols:
-                resized_df.columns = original_columns[:target_cols]
-            else:
-                new_columns = original_columns + [f"Extra_Feature_{i+1}" for i in range(target_cols - len(original_columns))]
-                resized_df.columns = new_columns
-            reference_columns = resized_df.columns.tolist()
-        else:
-            resized_df.columns = reference_columns
-
-        print(f"✅ Resized DataFrame Shape: {resized_df.shape}")
-        return resized_df, reference_columns
+        print(f"✅ Resized DataFrame Shape: {df.shape}")
+        return df
 
     except Exception as e:
         print(f"⚠ Error during resizing: {e}")
-        return df, reference_columns
+        return df
     
-
+    
 class DimensionReductionLayer(nn.Module):
     def __init__(self, in_channels=423, mid_channels=64, out_channels=32, num_oprators=4, sequence_length=None):
         super(DimensionReductionLayer, self).__init__()
@@ -187,8 +218,11 @@ class FeatureExtractionLayer(nn.Module):
 
         # ==== Column Feature Extraction ====
         self.conv1x1_col1 = nn.Conv2d(in_channels, mid_channels, kernel_size=(1, 1))
+        print(f"Conv1x1_col1 Shape: {self.conv1x1_col1}")
         self.conv1x2_col1 = nn.Conv2d(in_channels, mid_channels, kernel_size=(1, 2), padding=(0, 1))
+        print(f"Conv1x2_col1 Shape: {self.conv1x2_col1}")
         self.avgpool_col1 = nn.AvgPool2d(kernel_size=(100, 1), stride=(100, 1))  # Pool entire column
+        print(f"AvgPool_col1 Shape: {self.avgpool_col1}")
 
         self.conv1x1_col2 = nn.Conv2d(mid_channels, out_channels, kernel_size=(1, 1))
         self.conv1x2_col2 = nn.Conv2d(mid_channels, out_channels, kernel_size=(1, 2), padding=(0, 1))
@@ -210,19 +244,24 @@ class FeatureExtractionLayer(nn.Module):
         batch_size, _, height, width = x.shape
 
         # ====== Header Extraction ======
-        header = x[:, :, 0:1, :]  # ✅ Extract first row
+        header = x[:, :, 0:1, :]  
         x = x[:, :, 1:, :]
-        header_features = self.activation(self.conv1x1_header(header))  # ✅ Apply `1×1` filter
+        header_features = self.activation(self.conv1x1_header(header)) 
         print(f"Header Shape: {header_features.shape}")
 
         # ====== Column Feature Extraction ======
-        global_col1 = self.activation(self.conv1x1_col1(x))  
+        global_col1 = self.activation(self.conv1x1_col1(x))
+        print(f"global Column Shape: {global_col1.shape}")  
         local_col1 = self.activation(self.conv1x2_col1(x))   
+        print(f"local Column Shape: {local_col1.shape}")
 
-        # ✅ Fix width mismatch (1×2 conv may add +1 width)
+    
         min_width = min(global_col1.shape[3], local_col1.shape[3])
+        print(f"Min Width: {min_width}")
         global_col1 = global_col1[:, :, :, :min_width]
+        print(f"Global Column Shape: {global_col1.shape}")
         local_col1 = local_col1[:, :, :, :min_width]
+        print(f"Local Column Shape: {local_col1.shape}")
 
         global_col1_pooled = self.avgpool_col1(global_col1)  
         local_col1_pooled = self.avgpool_col1(local_col1)    
@@ -243,7 +282,7 @@ class FeatureExtractionLayer(nn.Module):
         global_row1 = self.activation(self.conv1x1_row1(x))  
         local_row1 = self.activation(self.conv1x2_row1(x))   
 
-        # ✅ Fix height mismatch (2×1 conv may add +1 height)
+
         min_height = min(global_row1.shape[2], local_row1.shape[2])
         global_row1 = global_row1[:, :, :min_height, :]
         local_row1 = local_row1[:, :, :min_height, :]
@@ -317,7 +356,7 @@ class OutputLayer(nn.Module):
 def main():
     # Generate relational table
 
-    relational_data = pd.read_csv("diabetes_train.csv")
+    relational_data = pd.read_csv("California_Houses.csv")
     # non_relational_table, operator_name  = apply_random_inverse_operator(relational_data)
     # print(f"Applied random inverse operator: {operator_name}")
     
@@ -331,7 +370,7 @@ def main():
         print("Transformed table is empty. Exiting.")
         return
 
-    resized_df, saved_columns = resize_dataframe(non_relational_table)
+    resized_df = resize_dataframe(non_relational_table)
     resized_df.to_csv('resized_table.csv', index=False)
     print(f"Shape of resized table: {resized_df.shape}")
     

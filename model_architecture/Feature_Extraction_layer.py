@@ -8,7 +8,7 @@ class FeatureExtractionLayer(nn.Module):
         # ==== Column Feature Extraction ====
         self.conv1x1_col1 = nn.Conv2d(in_channels, mid_channels, kernel_size=(1, 1))
         self.conv1x2_col1 = nn.Conv2d(in_channels, mid_channels, kernel_size=(1, 2), padding=(0, 1))
-        self.avgpool_col1 = nn.AvgPool2d(kernel_size=(100, 1), stride=(100, 1))  # Pool entire column
+        self.avgpool_col1 = nn.AvgPool2d(kernel_size=(100, 1), stride=(100, 1))
 
         self.conv1x1_col2 = nn.Conv2d(mid_channels, out_channels, kernel_size=(1, 1))
         self.conv1x2_col2 = nn.Conv2d(mid_channels, out_channels, kernel_size=(1, 2), padding=(0, 1))
@@ -16,7 +16,7 @@ class FeatureExtractionLayer(nn.Module):
         # ==== Row Feature Extraction ====
         self.conv1x1_row1 = nn.Conv2d(in_channels, mid_channels, kernel_size=(1, 1))
         self.conv1x2_row1 = nn.Conv2d(in_channels, mid_channels, kernel_size=(2, 1), padding=(1, 0))
-        self.avgpool_row1 = nn.AvgPool2d(kernel_size=(1, 50), stride=(1, 50))  # ✅ Fix: Pooling ensures 100 rows
+        self.avgpool_row1 = nn.AvgPool2d(kernel_size=(1, 50), stride=(1, 50))
 
         self.conv1x1_row2 = nn.Conv2d(mid_channels, out_channels, kernel_size=(1, 1))
         self.conv1x2_row2 = nn.Conv2d(mid_channels, out_channels, kernel_size=(2, 1), padding=(1, 0))
@@ -96,8 +96,6 @@ class FeatureExtractionLayer(nn.Module):
 
         return combined_features
 
-
-# **🚀 Testing**
 if __name__ == "__main__":
     input_tensor = torch.rand(1, 32, 101, 50)
     feature_extractor = FeatureExtractionLayer()
