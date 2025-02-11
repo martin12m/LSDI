@@ -37,19 +37,28 @@ class FeatureExtractionLayer(nn.Module):
         print(f"Header Shape: {header_features.shape}")
 
         # ====== Column Feature Extraction ======
-        global_col1 = self.activation(self.conv1x1_col1(x))  
+        
+        # Apply 1x1 convolution
+        global_col1 = self.activation(self.conv1x1_col1(x)) 
+        
+        # Apply 1x2 convolution 
         local_col1 = self.activation(self.conv1x2_col1(x))   
 
-        # ✅ Fix width mismatch (1×2 conv may add +1 width)
+       
         min_width = min(global_col1.shape[3], local_col1.shape[3])
+        
+        # crop the min global width to match local width
         global_col1 = global_col1[:, :, :, :min_width]
+        
+        # crop the min local width to match global width
         local_col1 = local_col1[:, :, :, :min_width]
 
+        # Apply average pooling
         global_col1_pooled = self.avgpool_col1(global_col1)  
         local_col1_pooled = self.avgpool_col1(local_col1)    
 
         column_features1 = global_col1_pooled + local_col1_pooled  
-
+        print(f"Column Features Shape after Pooling: {column_features1.shape}")
         global_col2 = self.activation(self.conv1x1_col2(column_features1))  
         local_col2 = self.activation(self.conv1x2_col2(column_features1))   
 
@@ -57,16 +66,18 @@ class FeatureExtractionLayer(nn.Module):
         global_col2 = global_col2[:, :, :, :min_width2]
         local_col2 = local_col2[:, :, :, :min_width2]
 
-        column_features2 = global_col2 + local_col2  # ✅ Now column shape is `8 × 50`
-        print(f"Column Features Shape: {column_features2.shape}")
+        column_features2 = global_col2 + local_col2 
+        print(f"Column Features Shape second betch of filter: {column_features2.shape}")
 
         # ====== Row Feature Extraction ======
         global_row1 = self.activation(self.conv1x1_row1(x))  
         local_row1 = self.activation(self.conv1x2_row1(x))   
 
-        # ✅ Fix height mismatch (2×1 conv may add +1 height)
+       
         min_height = min(global_row1.shape[2], local_row1.shape[2])
+        # crop the min global height to match local height
         global_row1 = global_row1[:, :, :min_height, :]
+        # crop the min local height to match global height
         local_row1 = local_row1[:, :, :min_height, :]
 
         global_row1_pooled = self.avgpool_row1(global_row1)  
@@ -81,16 +92,16 @@ class FeatureExtractionLayer(nn.Module):
         global_row2 = global_row2[:, :, :min_height2, :]
         local_row2 = local_row2[:, :, :min_height2, :]
 
-        row_features2 = global_row2 + local_row2  # ✅ Now row shape is `8 × 100`
-        print(f"Row Features Shape (Expected 800): {row_features2.shape}")
+        row_features2 = global_row2 + local_row2  
+        print(f"Row Features Shape: {row_features2.shape}")
 
         # ====== Flatten and Combine Features ======
-        column_features_flat = column_features2.view(batch_size, -1)  # (1, 8 * 50 = 400)
-        print(f"Column Features Shape (Expected 400): {column_features_flat.shape}")
-        row_features_flat = row_features2.view(batch_size, -1)        # (1, 8 * 100 = 800)
+        column_features_flat = column_features2.view(batch_size, -1)  
+        print(f"Column Features Shape: {column_features_flat.shape}")
+        row_features_flat = row_features2.view(batch_size, -1)        
         print(f"row_features_flat.shape", row_features_flat.shape)
-        header_features_flat = header_features.view(batch_size, -1)   # (1, 8 * 50 = 400)
-        print(f"Header Features Shape (Expected 400): {header_features_flat.shape}")
+        header_features_flat = header_features.view(batch_size, -1) 
+        print(f"Header Features Shape : {header_features_flat.shape}")
 
         combined_features = torch.cat([column_features_flat, row_features_flat, header_features_flat], dim=1)
 

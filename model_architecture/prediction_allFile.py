@@ -9,7 +9,6 @@ import string
 from sentence_transformers import SentenceTransformer
 
 
-# ---- Operators and Inverse Operators ----
 def unstack_dataframe(df):
     try:
         non_numeric_cols = df.select_dtypes(include=['object']).columns.tolist()
@@ -221,7 +220,7 @@ class FeatureExtractionLayer(nn.Module):
         print(f"Conv1x1_col1 Shape: {self.conv1x1_col1}")
         self.conv1x2_col1 = nn.Conv2d(in_channels, mid_channels, kernel_size=(1, 2), padding=(0, 1))
         print(f"Conv1x2_col1 Shape: {self.conv1x2_col1}")
-        self.avgpool_col1 = nn.AvgPool2d(kernel_size=(100, 1), stride=(100, 1))  # Pool entire column
+        self.avgpool_col1 = nn.AvgPool2d(kernel_size=(100, 1), stride=(100, 1)) 
         print(f"AvgPool_col1 Shape: {self.avgpool_col1}")
 
         self.conv1x1_col2 = nn.Conv2d(mid_channels, out_channels, kernel_size=(1, 1))
@@ -230,7 +229,7 @@ class FeatureExtractionLayer(nn.Module):
         # ==== Row Feature Extraction ====
         self.conv1x1_row1 = nn.Conv2d(in_channels, mid_channels, kernel_size=(1, 1))
         self.conv1x2_row1 = nn.Conv2d(in_channels, mid_channels, kernel_size=(2, 1), padding=(1, 0))
-        self.avgpool_row1 = nn.AvgPool2d(kernel_size=(1, 50), stride=(1, 50))  # ✅ Fix: Pooling ensures 100 rows
+        self.avgpool_row1 = nn.AvgPool2d(kernel_size=(1, 50), stride=(1, 50)) 
 
         self.conv1x1_row2 = nn.Conv2d(mid_channels, out_channels, kernel_size=(1, 1))
         self.conv1x2_row2 = nn.Conv2d(mid_channels, out_channels, kernel_size=(2, 1), padding=(1, 0))
@@ -275,7 +274,7 @@ class FeatureExtractionLayer(nn.Module):
         global_col2 = global_col2[:, :, :, :min_width2]
         local_col2 = local_col2[:, :, :, :min_width2]
 
-        column_features2 = global_col2 + local_col2  # ✅ Now column shape is `8 × 50`
+        column_features2 = global_col2 + local_col2  
         print(f"Column Features Shape: {column_features2.shape}")
 
         # ====== Row Feature Extraction ======
@@ -299,16 +298,16 @@ class FeatureExtractionLayer(nn.Module):
         global_row2 = global_row2[:, :, :min_height2, :]
         local_row2 = local_row2[:, :, :min_height2, :]
 
-        row_features2 = global_row2 + local_row2  # ✅ Now row shape is `8 × 100`
-        print(f"Row Features Shape (Expected 800): {row_features2.shape}")
+        row_features2 = global_row2 + local_row2 
+        print(f"Row Features Shape: {row_features2.shape}")
 
         # ====== Flatten and Combine Features ======
-        column_features_flat = column_features2.reshape(batch_size, -1)  # (1, 8 * 50 = 400)
-        print(f"Column Features Shape (Expected 400): {column_features_flat.shape}")
-        row_features_flat = row_features2.reshape(batch_size, -1)        # (1, 8 * 100 = 800)
+        column_features_flat = column_features2.reshape(batch_size, -1)  
+        print(f"Column Features Shape: {column_features_flat.shape}")
+        row_features_flat = row_features2.reshape(batch_size, -1)       
         print(f"row_features_flat.shape", row_features_flat.shape)
-        header_features_flat = header_features.reshape(batch_size, -1)   # (1, 8 * 50 = 400)
-        print(f"Header Features Shape (Expected 400): {header_features_flat.shape}")
+        header_features_flat = header_features.reshape(batch_size, -1)  
+        print(f"Header Features Shape : {header_features_flat.shape}")
 
         combined_features = torch.cat([column_features_flat, row_features_flat, header_features_flat], dim=1)
 
@@ -347,18 +346,15 @@ class OutputLayer(nn.Module):
 
         # x = self.fc3(x)  # Final logits (no activation, handled externally)
         x = self.fc1(x)  # First fully connected layer
-        x = self.activation(x)  # Activation
+        x = self.activation(x) 
         x = self.fc2(x)
-        print(f"Output Layer Shape: {x.shape}")  # Debugging print
+        print(f"Output Layer Shape: {x.shape}")  
         return x
 
-# ---- Main Prediction Pipeline ----
 def main():
-    # Generate relational table
+
 
     relational_data = pd.read_csv("California_Houses.csv")
-    # non_relational_table, operator_name  = apply_random_inverse_operator(relational_data)
-    # print(f"Applied random inverse operator: {operator_name}")
     
     non_relational_table, operator_name = apply_random_inverse_operator(relational_data)
     print(f"Applied random inverse operator: {operator_name}")
@@ -394,7 +390,7 @@ def main():
 
     # Dimension Reduction Layer
     input_tensor = torch.rand(final_features.shape)
-    n, m, d = input_tensor.shape  # (n, m, d)
+    n, m, d = input_tensor.shape 
     input_tensor = torch.tensor(final_features, dtype=torch.float32).unsqueeze(0)
     input_tensor_reshaped = input_tensor.permute(0, 3, 1, 2)
     print(f"Input Tensor Shape: {input_tensor_reshaped.shape}")
@@ -412,14 +408,9 @@ def main():
     print("✅ Final Output Shape:", output.shape)  
     
 
-    # *Calculate input dimension for OutputLayer*
     input_dim = output.shape[1]  
     print(f"Input Dimension for Output Layer: {input_dim}")
-
-    # *Initialize the Output Layer for 2 classes*
     output_layer = OutputLayer(input_dim=input_dim, output_dim=2)
-
-    # *Pass extracted features through Output Layer*
     logits = output_layer(output)
 
 

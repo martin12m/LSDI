@@ -105,7 +105,7 @@ def extract_syntactic_features(cell):
     
     
 test_cases = [
-"Hello123!",  # Mix of letters, digits, punctuation
+"Martin123!!!!!!!",  # Mix of letters, digits, punctuation
 "HELLO",      # All uppercase
 "hello",      # All lowercase
 "Hello World",  # Multi-word
