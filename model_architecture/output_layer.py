@@ -25,7 +25,7 @@ class OutputLayer(nn.Module):
         return x  # Raw logits; softmax can be applied externally
 
 
-# Example Usage
+
 if __name__ == "__main__":
 
     # *Simulated input from Feature Extraction Layer*

@@ -1,5 +1,3 @@
-
-
 import torch
 import torch.nn as nn
 import pandas as pd
@@ -120,6 +118,49 @@ def combine_features_for_row(row, model):
     return np.array(combined_row_features)
 
 
+# def resize_dataframe(df, target_rows=101, target_cols=50, reference_columns=None):
+#     try:
+#         print("\n🛠 Debug: Resizing DataFrame...")
+
+#         original_columns = df.columns.tolist()
+
+#         # Convert all values to numeric, replacing non-numeric with NaN
+#         df_numeric = df.apply(pd.to_numeric, errors='coerce')
+
+#         # Flatten values and remove NaNs
+#         values = df_numeric.values.flatten()
+#         values = values[~np.isnan(values)]  # ✅ Ensure only numeric values remain
+
+#         total_values = target_rows * target_cols
+
+#         # Adjust number of values dynamically
+#         if len(values) > total_values:
+#             values = values[:total_values]
+#         elif len(values) < total_values:
+#             extra_needed = total_values - len(values)
+#             repeated_values = np.tile(values, (extra_needed // len(values)) + 1)[:extra_needed]
+#             values = np.concatenate([values, repeated_values])
+
+#         # Create resized dataframe
+#         resized_df = pd.DataFrame(values.reshape(target_rows, target_cols))
+
+#         # Maintain reference column names
+#         if reference_columns is None:
+#             if len(original_columns) >= target_cols:
+#                 resized_df.columns = original_columns[:target_cols]
+#             else:
+#                 new_columns = original_columns + [f"Extra_Feature_{i+1}" for i in range(target_cols - len(original_columns))]
+#                 resized_df.columns = new_columns
+#             reference_columns = resized_df.columns.tolist()
+#         else:
+#             resized_df.columns = reference_columns
+
+#         print(f"✅ Resized DataFrame Shape: {resized_df.shape}")
+#         return resized_df, reference_columns
+
+#     except Exception as e:
+#         print(f"⚠ Error during resizing: {e}")
+#         return df, reference_columns
     
 def resize_dataframe(df, target_rows=101, target_cols=50):
 
@@ -309,7 +350,19 @@ class OutputLayer(nn.Module):
         print(f"Output Layer Shape: {x.shape}")  
         return x
 
+class ParameterPredictionLayer(nn.Module):
+    def __init__(self, input_dim, num_columns, num_rows):
 
+        super(ParameterPredictionLayer, self).__init__()
+        self.fc_column = nn.Linear(input_dim, num_columns)  
+        self.fc_row = nn.Linear(input_dim, num_rows) 
+
+    def forward(self, x):
+        pivot_column_scores = self.fc_column(x)  
+        header_row_scores = self.fc_row(x) 
+        return pivot_column_scores, header_row_scores
+    
+    
 def main():
 
 
@@ -383,7 +436,16 @@ def main():
     predicted_operator = [operators[i] for i in predicted_operator_idx]
     print(f"Predicted Operator: {predicted_operator}")
     print(f"Actual operator: {operator_name}")
+    
+    parameter_layer = ParameterPredictionLayer(input_dim=input_dim, num_columns=50, num_rows=101)
+    pivot_column_scores, header_row_scores = parameter_layer(output)
+    print(f"Pivot Column Scores Shape: {pivot_column_scores.shape}")
+    print(f"Header Row Scores Shape: {header_row_scores.shape}")
+    predicted_pivot_column = torch.argmax(pivot_column_scores, dim=1).tolist()
+    print(f"Predicted Pivot Column: {predicted_pivot_column}")
+    predicted_header_row = torch.argmax(header_row_scores, dim=1).tolist()
+    print(f"Predicted Header Row: {predicted_header_row}")
+    
 
 if __name__ == "__main__":
     main()
-
