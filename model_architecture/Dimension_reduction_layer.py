@@ -39,8 +39,7 @@ if __name__ == "__main__":
     input_tensor = input_tensor.permute(0, 3, 1, 2) 
     print(f"Input Tensor Shape: {input_tensor.shape}")
 
-    # Initialize dimension reduction layer
-    in_channels = input_tensor.shape[1]  # 423
+    in_channels = input_tensor.shape[1] 
     dim_reduction_layer = DimensionReductionLayer(in_channels=in_channels, mid_channels=64, out_channels=32)
 
 
@@ -48,11 +47,14 @@ if __name__ == "__main__":
     print(f"Output Tensor Shape: {output_tensor.shape}")
     output_tensor_final_cpu = output_tensor.detach().cpu()
 
+    # save the final output tensor to disk
     torch.save(output_tensor_final_cpu, "dimension_reduced_tensor.pth")
     print("Dimension-reduced tensor saved as 'dimension_reduced_tensor.pth'.")
 
+    # save the state dictionary of the model
     torch.save(dim_reduction_layer.state_dict(), "dimension_reduction_layer.pth")
     print("Dimension Reduction Layer state dictionary saved as 'dimension_reduction_layer.pth'.")
 
+    # Load the saved tensor
     loaded_tensor = torch.load("dimension_reduced_tensor.pth")
     print("Loaded Tensor Shape:", loaded_tensor.shape)

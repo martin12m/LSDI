@@ -173,26 +173,25 @@ class FeatureExtractionLayer(nn.Module):
         super(FeatureExtractionLayer, self).__init__()
 
         # ==== Column Feature Extraction ====
+        
         self.conv1x1_col1 = nn.Conv2d(in_channels, mid_channels, kernel_size=(1, 1))
-        print(f"Conv1x1_col1 Shape: {self.conv1x1_col1}")
         self.conv1x2_col1 = nn.Conv2d(in_channels, mid_channels, kernel_size=(1, 2), padding=(0, 1))
-        print(f"Conv1x2_col1 Shape: {self.conv1x2_col1}")
         self.avgpool_col1 = nn.AvgPool2d(kernel_size=(100, 1), stride=(100, 1)) 
-        print(f"AvgPool_col1 Shape: {self.avgpool_col1}")
-
         self.conv1x1_col2 = nn.Conv2d(mid_channels, out_channels, kernel_size=(1, 1))
         self.conv1x2_col2 = nn.Conv2d(mid_channels, out_channels, kernel_size=(1, 2), padding=(0, 1))
 
         # ==== Row Feature Extraction ====
+        
         self.conv1x1_row1 = nn.Conv2d(in_channels, mid_channels, kernel_size=(1, 1))
         self.conv1x2_row1 = nn.Conv2d(in_channels, mid_channels, kernel_size=(2, 1), padding=(1, 0))
         self.avgpool_row1 = nn.AvgPool2d(kernel_size=(1, 50), stride=(1, 50)) 
-
         self.conv1x1_row2 = nn.Conv2d(mid_channels, out_channels, kernel_size=(1, 1))
         self.conv1x2_row2 = nn.Conv2d(mid_channels, out_channels, kernel_size=(2, 1), padding=(1, 0))
 
+
         # ==== Header Feature Extraction ====
         self.conv1x1_header = nn.Conv2d(in_channels, out_channels, kernel_size=(1, 1))
+        self.conv1x2_header = nn.Conv2d(in_channels, out_channels, kernel_size=(1, 2), padding=(0, 1))
 
         self.activation = nn.ReLU()
 
@@ -202,22 +201,22 @@ class FeatureExtractionLayer(nn.Module):
         # ====== Header Extraction ======
         header = x[:, :, 0:1, :]  
         x = x[:, :, 1:, :]
-        header_features = self.activation(self.conv1x1_header(header)) 
-        print(f"Header Shape: {header_features.shape}")
+        header_features_1 = self.activation(self.conv1x1_header(header))
+        header_features_2 = self.activation(self.conv1x2_header(header))
+        
+        min_width_header = min(header_features_1.shape[3], header_features_2.shape[3])
+        header_features_1 = header_features_1[:, :, :, :min_width_header]
+        header_features_2 = header_features_2[:, :, :, :min_width_header]
+        header = header_features_1 + header_features_2
+        print(f"Header Shape after concatenation: {header.shape}")
 
         # ====== Column Feature Extraction ======
         global_col1 = self.activation(self.conv1x1_col1(x))
-        print(f"global Column Shape: {global_col1.shape}")  
         local_col1 = self.activation(self.conv1x2_col1(x))   
-        print(f"local Column Shape: {local_col1.shape}")
-
-    
+        
         min_width = min(global_col1.shape[3], local_col1.shape[3])
-        print(f"Min Width: {min_width}")
         global_col1 = global_col1[:, :, :, :min_width]
-        print(f"Global Column Shape: {global_col1.shape}")
         local_col1 = local_col1[:, :, :, :min_width]
-        print(f"Local Column Shape: {local_col1.shape}")
 
         global_col1_pooled = self.avgpool_col1(global_col1)  
         local_col1_pooled = self.avgpool_col1(local_col1)    
@@ -226,13 +225,14 @@ class FeatureExtractionLayer(nn.Module):
 
         global_col2 = self.activation(self.conv1x1_col2(column_features1))  
         local_col2 = self.activation(self.conv1x2_col2(column_features1))   
-
+        
         min_width2 = min(global_col2.shape[3], local_col2.shape[3])
         global_col2 = global_col2[:, :, :, :min_width2]
         local_col2 = local_col2[:, :, :, :min_width2]
 
         column_features2 = global_col2 + local_col2  
         print(f"Column Features Shape: {column_features2.shape}")
+
 
         # ====== Row Feature Extraction ======
         global_row1 = self.activation(self.conv1x1_row1(x))  
@@ -263,7 +263,7 @@ class FeatureExtractionLayer(nn.Module):
         print(f"Column Features Shape: {column_features_flat.shape}")
         row_features_flat = row_features2.reshape(batch_size, -1)       
         print(f"row_features_flat.shape", row_features_flat.shape)
-        header_features_flat = header_features.reshape(batch_size, -1)  
+        header_features_flat = header.reshape(batch_size, -1)  
         print(f"Header Features Shape : {header_features_flat.shape}")
 
         combined_features = torch.cat([column_features_flat, row_features_flat, header_features_flat], dim=1)
@@ -272,46 +272,19 @@ class FeatureExtractionLayer(nn.Module):
 
 
 class OutputLayer(nn.Module):
-    def __init__(self, input_dim, output_dim=2):  # Only 2 operators: unstack & transpose
+    def __init__(self, input_dim, output_dim=2):  
         super(OutputLayer, self).__init__()
-
-        # # Fully connected layers with dropout to prevent overfitting
-        # self.fc1 = nn.Linear(input_dim, 512)
-        # self.activation1 = nn.ReLU()
-        # self.dropout1 = nn.Dropout(p=0.3)
-
-        # self.fc2 = nn.Linear(512, 128)
-        # self.activation2 = nn.ReLU()
-        # self.dropout2 = nn.Dropout(p=0.3)
-
-        # self.fc3 = nn.Linear(128, output_dim)  # Final output for 2 operators
-        self.fc1 = nn.Linear(input_dim, 512)  # First fully connected layer
-        self.fc2 = nn.Linear(512, output_dim)  # Second fully connected layer
-        
-        # Activation Function
+        self.fc1 = nn.Linear(input_dim, 512)  
+        self.fc2 = nn.Linear(512, output_dim)  
         self.activation = nn.ReLU()
 
     def forward(self, x):
-        print(f"Before Passing Through Output Layer: {x.shape}")  # Debugging print
-
-        # x = self.activation1(self.fc1(x))
-        # x = self.dropout1(x)
-
-        # x = self.activation2(self.fc2(x))
-        # x = self.dropout2(x)
-
-        # x = self.fc3(x)  # Final logits (no activation, handled externally)
-        x = self.fc1(x)# First fully connected layer
-        print(f"Before Passing Through first Fully Connected Layer: {x.shape}")  
+        x = self.fc1(x)
         x = self.activation(x) 
-        x = self.fc2(x)
-        print(f"Before Passing Through second Fully Connected Layer: {x.shape}")
-        print(f"Output Layer Shape: {x.shape}")  
+        x = self.fc2(x)  
         return x
 
-
 def main():
-
 
     relational_data = pd.read_csv("e-commerce_1.csv")
     
@@ -329,7 +302,6 @@ def main():
     resized_df.to_csv('resized_table.csv', index=False)
     print(f"Shape of resized table: {resized_df.shape}")
     
-    # Load Sentence-BERT model
     model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
 
     # Extract features
@@ -342,8 +314,6 @@ def main():
     if not all_features:
         print("No features extracted. Exiting.")
         return
-
-    # Create feature tensor
     final_features = np.stack(all_features)
     print(f"Feature Tensor Shape: {final_features.shape}")
 
@@ -364,19 +334,17 @@ def main():
     print(f"Input Reduced Tensor Shape: {input_reduced_tensor.shape}")
     feature_extractor = FeatureExtractionLayer()
     output = feature_extractor(input_reduced_tensor)
-    print("✅ Final Output Shape:", output.shape)  
+    print(" Final Output Shape:", output.shape)  
     
-
+    # Output Layer
     input_dim = output.shape[1]  
     print(f"Input Dimension for Output Layer: {input_dim}")
     output_layer = OutputLayer(input_dim=input_dim, output_dim=2)
     logits = output_layer(output)
 
-
-    # *Convert logits to probabilities using softmax*
+    # Convert logits to probabilities using softmax
     operator_probs = torch.softmax(logits, dim=1).detach().cpu().numpy().tolist()
     print(f"Softmax probabilities: {operator_probs}")
-
 
     operators = ["unstack", "transpose"]
     predicted_operator_idx = torch.argmax(logits, dim=1).tolist()

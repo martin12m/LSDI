@@ -28,7 +28,7 @@ def unstack_dataframe(df):
         return df
 def transpose_dataframe_inverse(df):
     try:
-        print("\n🛠 Debug: Transposing DataFrame...")
+        print("\n Debug: Transposing DataFrame...")
 
         # Ensure first column is categorical (Avoid numeric index issues)
         if df.dtypes[0] != 'object':
@@ -38,7 +38,7 @@ def transpose_dataframe_inverse(df):
         transposed_df = df.set_index(df.columns[0]).T.reset_index()
 
         # Print debug info
-        print(f"✅ Transposed DataFrame Shape: {transposed_df.shape}")
+        print(f"Transposed DataFrame Shape: {transposed_df.shape}")
         return transposed_df
 
     except Exception as error:
@@ -116,56 +116,11 @@ def combine_features_for_row(row, model):
         combined_features = np.hstack([syntactic_features, semantic_features])
         combined_row_features.append(combined_features)
     return np.array(combined_row_features)
-
-
-# def resize_dataframe(df, target_rows=101, target_cols=50, reference_columns=None):
-#     try:
-#         print("\n🛠 Debug: Resizing DataFrame...")
-
-#         original_columns = df.columns.tolist()
-
-#         # Convert all values to numeric, replacing non-numeric with NaN
-#         df_numeric = df.apply(pd.to_numeric, errors='coerce')
-
-#         # Flatten values and remove NaNs
-#         values = df_numeric.values.flatten()
-#         values = values[~np.isnan(values)]  # ✅ Ensure only numeric values remain
-
-#         total_values = target_rows * target_cols
-
-#         # Adjust number of values dynamically
-#         if len(values) > total_values:
-#             values = values[:total_values]
-#         elif len(values) < total_values:
-#             extra_needed = total_values - len(values)
-#             repeated_values = np.tile(values, (extra_needed // len(values)) + 1)[:extra_needed]
-#             values = np.concatenate([values, repeated_values])
-
-#         # Create resized dataframe
-#         resized_df = pd.DataFrame(values.reshape(target_rows, target_cols))
-
-#         # Maintain reference column names
-#         if reference_columns is None:
-#             if len(original_columns) >= target_cols:
-#                 resized_df.columns = original_columns[:target_cols]
-#             else:
-#                 new_columns = original_columns + [f"Extra_Feature_{i+1}" for i in range(target_cols - len(original_columns))]
-#                 resized_df.columns = new_columns
-#             reference_columns = resized_df.columns.tolist()
-#         else:
-#             resized_df.columns = reference_columns
-
-#         print(f"✅ Resized DataFrame Shape: {resized_df.shape}")
-#         return resized_df, reference_columns
-
-#     except Exception as e:
-#         print(f"⚠ Error during resizing: {e}")
-#         return df, reference_columns
     
 def resize_dataframe(df, target_rows=101, target_cols=50):
 
     try:
-        print("\n🛠 Debug: Resizing DataFrame...")
+        print("\n Debug: Resizing DataFrame...")
 
         # Calculate how many rows/columns to keep
         num_rows, num_cols = df.shape
@@ -313,40 +268,17 @@ class FeatureExtractionLayer(nn.Module):
 
 
 class OutputLayer(nn.Module):
-    def __init__(self, input_dim, output_dim=2):  # Only 2 operators: unstack & transpose
+    def __init__(self, input_dim, output_dim=2): 
         super(OutputLayer, self).__init__()
-
-        # # Fully connected layers with dropout to prevent overfitting
-        # self.fc1 = nn.Linear(input_dim, 512)
-        # self.activation1 = nn.ReLU()
-        # self.dropout1 = nn.Dropout(p=0.3)
-
-        # self.fc2 = nn.Linear(512, 128)
-        # self.activation2 = nn.ReLU()
-        # self.dropout2 = nn.Dropout(p=0.3)
-
-        # self.fc3 = nn.Linear(128, output_dim)  # Final output for 2 operators
-        self.fc1 = nn.Linear(input_dim, 512)  # First fully connected layer
-        self.fc2 = nn.Linear(512, output_dim)  # Second fully connected layer
+        self.fc1 = nn.Linear(input_dim, 512)  
+        self.fc2 = nn.Linear(512, output_dim)  
         
-        # Activation Function
         self.activation = nn.ReLU()
 
     def forward(self, x):
-        print(f"Before Passing Through Output Layer: {x.shape}")  # Debugging print
-
-        # x = self.activation1(self.fc1(x))
-        # x = self.dropout1(x)
-
-        # x = self.activation2(self.fc2(x))
-        # x = self.dropout2(x)
-
-        # x = self.fc3(x)  # Final logits (no activation, handled externally)
-        x = self.fc1(x)# First fully connected layer
-        print(f"Before Passing Through first Fully Connected Layer: {x.shape}")  
+        x = self.fc1(x)
         x = self.activation(x) 
         x = self.fc2(x)
-        print(f"Before Passing Through second Fully Connected Layer: {x.shape}")
         print(f"Output Layer Shape: {x.shape}")  
         return x
 
@@ -364,7 +296,6 @@ class ParameterPredictionLayer(nn.Module):
     
     
 def main():
-
 
     relational_data = pd.read_csv("e-commerce_1.csv")
     
@@ -395,8 +326,6 @@ def main():
     if not all_features:
         print("No features extracted. Exiting.")
         return
-
-    # Create feature tensor
     final_features = np.stack(all_features)
     print(f"Feature Tensor Shape: {final_features.shape}")
 
@@ -417,7 +346,7 @@ def main():
     print(f"Input Reduced Tensor Shape: {input_reduced_tensor.shape}")
     feature_extractor = FeatureExtractionLayer()
     output = feature_extractor(input_reduced_tensor)
-    print("✅ Final Output Shape:", output.shape)  
+    print(" Final Output Shape:", output.shape)  
     
 
     input_dim = output.shape[1]  

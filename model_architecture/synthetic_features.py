@@ -4,53 +4,85 @@ import string
 import numpy as np
 
 def extract_syntactic_features(cell):
-    """
-    Extracts 39 syntactic features dynamically from cell values.
-    - Works for both string and numeric inputs.
-    - Ensures correctness by handling special cases.
-    - Aligns with research paper's approach.
-    """
     if not isinstance(cell, str):
-        cell = str(cell)  # Convert non-string inputs to string safely
+        cell = str(cell) 
 
     length = len(cell)
-    
-    # Handle edge case where length is 0
     if length == 0:
         return [0] * 39
 
+    # Handle the digits in the cell
     num_digits = sum(c.isdigit() for c in cell)
+    
+    # Handle the uppercase characters in the cell
     num_uppercase = sum(c.isupper() for c in cell)
+    
+    # Handle the lowercase characters in the cell
     num_lowercase = sum(c.islower() for c in cell)
+    
+    # Handle the punctuation marks in the cell
     num_punctuation = sum(c in string.punctuation for c in cell)
+    
+    # Handle the whitespace characters in the cell
     num_whitespace = sum(c.isspace() for c in cell)
+    
+    # Handle the special characters in the cell
     num_special_chars = sum(not c.isalnum() and not c.isspace() for c in cell)
-
-    # Proportions (Ensure safe division)
+    
+    # Calculate the proportions of each type of character
     proportion_uppercase = round(num_uppercase / length, 3) if length > 0 else 0
+    
+    # Calculate the proportions of each type of character
     proportion_digits = round(num_digits / length, 3) if length > 0 else 0
+    
+    # Calculate the proportions of each type of character
     proportion_punctuation = round(num_punctuation / length, 3) if length > 0 else 0
+    
+    # Calculate the proportions of each type of character
     proportion_whitespace = round(num_whitespace / length, 3) if length > 0 else 0
-
-    # Word-level features
+    
+    # Calculate the proportions of each type of character
     words = cell.split()
     num_words = len(words)
+    
+    # Handle the number of characters in each word
     avg_word_length = round(sum(len(word) for word in words) / num_words, 3) if num_words > 0 else 0
+    
+    # Handle the number of words in each sentence
     longest_word_length = max((len(word) for word in words), default=0)
+    
+    # Handle the shortest word in the sentence
     shortest_word_length = min((len(word) for word in words), default=0)
+    
+    # Handle the proportion of words in the sentence
     proportion_words = round(num_words / length, 3) if length > 0 else 0
-
-    # Special patterns
+    
+    # Handle the presence of at-symbol in the cell
     contains_email = "@" in cell
+    
+    # Handle the presence of URL in the cell
     contains_url = any(substr in cell for substr in ["http://", "https://", "www."])
+    
+    # Handle the presence of hashtag in the cell
     contains_hashtag = "#" in cell
-    contains_at_symbol = "@" in cell  # Redundant but kept for research alignment
+    
+    # Handle the dollar sign in the cell
+    contains_at_symbol = "$" in cell 
+    
+    # Handle the presence of numeric values in the cell 
     is_numeric = cell.isdigit()
+    
+    # Handle the presence of alphabetic characters in the cell
     is_alpha = cell.isalpha()
+    
+    # Handle the presence of alphanumeric characters in the cell
     is_alphanumeric = cell.isalnum()
+    
+    # Handle the capitalization of the cell
     is_capitalized = cell.istitle()
 
-    # Shannon entropy (Fixed for empty or single-character strings)
+
+    # this loop calculates the Shannon Entropy of the cell
     try:
         shannon_entropy = -sum(
             (cell.count(c) / length) * np.log2(cell.count(c) / length)
@@ -58,34 +90,54 @@ def extract_syntactic_features(cell):
         )
         shannon_entropy = round(shannon_entropy, 3) if length > 1 else 0
     except ValueError:
-        shannon_entropy = 0  # Handles log(0) issue safely
+        shannon_entropy = 0
+
 
     # Unique character ratio
     unique_chars = len(set(cell))
+    
+    # Proportion of vowels in the cell
     proportion_vowels = round(sum(c in "aeiouAEIOU" for c in cell) / length, 3) if length > 0 else 0
-
-    # Pattern-based features
+    
+    
+    # Check if the cell is a palindrome
     is_palindrome = cell == cell[::-1]
+    
+    # Check for repeating characters in the cell
     repeating_chars = sum(cell[i] == cell[i - 1] for i in range(1, length))
     
-    # Fix for repeating words in single-word inputs
+    # Check for repeating words in the cell
     repeating_words = sum(words[i] == words[i - 1] for i in range(1, len(words))) if num_words > 1 else 0
-
-    # Character types (ASCII values of first and last char)
+    
+    # Calculate ASCII values of first and last characters
     first_char_type = ord(cell[0]) if length > 0 else 0
+    
+    # Calculate ASCII values of first and last characters
     last_char_type = ord(cell[-1]) if length > 0 else 0
-
-    # Most/Least frequent character occurrences
+    
+    # Calculate the most frequent character in the cell
     most_frequent_char = max((cell.count(c) for c in set(cell)), default=0)
+    
+    # Calculate the least frequent character in the cell
     least_frequent_char = min((cell.count(c) for c in set(cell)), default=0)
-
+    
     # Frequency-based features
     digit_frequency = round(num_digits / length, 3) if length > 0 else 0
+    
+    # punctuation characters frequency
     punctuation_frequency = round(num_punctuation / length, 3) if length > 0 else 0
+    
+    # whitespace characters frequency
     whitespace_frequency = round(num_whitespace / length, 3) if length > 0 else 0
+    
+    # Character diversity ratio
     char_diversity_ratio = round(unique_chars / length, 3) if length > 0 else 0
+    
+    # Number of alphabetic sequences in the cell
     num_alpha_sequences = sum(1 for part in words if part.isalpha())
 
+
+    # it returns a list of features extracted from the cell
     return [
         length, num_digits, num_uppercase, num_lowercase, num_punctuation, 
         num_whitespace, num_special_chars, proportion_uppercase, 
@@ -101,23 +153,20 @@ def extract_syntactic_features(cell):
     ]
     
     
-    
-    
-    
 test_cases = [
-"Martin123!!!!!!!",  # Mix of letters, digits, punctuation
-"HELLO",      # All uppercase
-"hello",      # All lowercase
-"Hello World",  # Multi-word
-"123456",     # All digits
-"www.google.com",  # URL
-"email@domain.com",  # Email
-"",           # Empty string (edge case)
-"A",          # Single-character string
-"AAABBBCCC"   # Repeating characters
+"Hartin123!!!!!!!",  
+"HELLO123!",      
+"hello",      
+"Hello World",  
+"123456",     
+"www.google.com",  
+"email@domain.com", 
+"",           
+"A",         
+"AAABBBCCC"   
 ]
 
 for test in test_cases:
-    print(f"\n🔍 Testing: {test}")
+    print(f"\n Testing: {test}")
     features = extract_syntactic_features(test)
     print("First 10 features:", features[:10])
