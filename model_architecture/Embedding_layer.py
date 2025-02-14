@@ -1,211 +1,169 @@
-import torch
-import torch.nn as nn
-import pandas as pd
-import numpy as np
-import random
+import os
+import glob
 import string
-from sentence_transformers import SentenceTransformer
-
-# ---- Operators and Inverse Operators ----
+import numpy as np
 import pandas as pd
+from sentence_transformers import SentenceTransformer
+import torch
+from torch.utils.data import TensorDataset, DataLoader
+from tqdm import tqdm  # Progress bar
+from collections import Counter
+from functools import lru_cache
 
-def unstack_dataframe(df):
-    try:
-        categorical_cols = df.select_dtypes(include=['object']).columns.tolist()
-        numeric_cols = df.select_dtypes(exclude=['object']).columns.tolist()
+# Load SentenceTransformer model
+model = SentenceTransformer('paraphrase-MiniLM-L3-v2')
 
-        if len(categorical_cols) < 1 or len(numeric_cols) == 0:
-            raise ValueError("Table must contain categorical and numeric columns for unstacking.")
-
-        pivot_column = categorical_cols[-1]  
-        index_cols = categorical_cols[:-1]  
-        df['_unique_id'] = df.groupby(index_cols).cumcount()
-        unstacked_df = df.pivot(index=index_cols + ['_unique_id'], columns=pivot_column, values=numeric_cols[0])
-        unstacked_df = unstacked_df.reset_index().drop(columns=['_unique_id'])
-
-        print("Unstack Transformation Successful!")
-        return unstacked_df
-
-    except Exception as e:
-        print(f" Error during unstacking: {e}")
-        return df
-
-    
-def transpose_dataframe_inverse(df):
-
-    try:
-        print("\n Applying Transpose Operator...")
-        df.columns = [str(col) for col in df.columns]
-        transposed_df = df.set_index(df.columns[0]).T
-        transposed_df = transposed_df.reset_index()
-        transposed_df.columns = ['Index'] + list(transposed_df.columns[1:])
-
-        print(f"Transposed DataFrame Shape: {transposed_df.shape}")
-        return transposed_df
-
-    except Exception as e:
-        print(f" Error during transpose: {e}")
-        return df
-
-def apply_random_inverse_operator(df):
-    operators = {
-        "unstack": unstack_dataframe,
-        "transpose": transpose_dataframe_inverse
-    }
-    operator_name = random.choice(list(operators.keys()))
-    transformed_df = operators[operator_name](df)
-    return transformed_df, operator_name
-
-
-# predefined 39 synthetic features
-def extract_syntactic_features(cell):
-    if not isinstance(cell, str):
-        cell = str(cell)  
-
-    length = len(cell)
+# Feature Extraction Functions
+@lru_cache(maxsize=None)
+def extract_syntactic_features(cell: str):
+    """
+    Extracts syntactic features from a single table cell.
+    Caches results for repeated cells to save recomputation.
+    """
+    s = str(cell)
+    length = len(s)
     if length == 0:
+        # Return a list of zeros with the same number of features (39 in this case)
         return [0] * 39
 
-    num_digits = sum(c.isdigit() for c in cell)
-    num_uppercase = sum(c.isupper() for c in cell)
-    num_lowercase = sum(c.islower() for c in cell)
-    num_punctuation = sum(c in string.punctuation for c in cell)
-    num_whitespace = sum(c.isspace() for c in cell)
-    num_special_chars = sum(not c.isalnum() and not c.isspace() for c in cell)
-    proportion_uppercase = round(num_uppercase / length, 3) if length > 0 else 0
-    proportion_digits = round(num_digits / length, 3) if length > 0 else 0
-    proportion_punctuation = round(num_punctuation / length, 3) if length > 0 else 0
-    proportion_whitespace = round(num_whitespace / length, 3) if length > 0 else 0
-    words = cell.split()
+    # Compute once and reuse
+    words = s.split()
     num_words = len(words)
-    avg_word_length = round(sum(len(word) for word in words) / num_words, 3) if num_words > 0 else 0
+    num_digits = sum(c.isdigit() for c in s)
+    num_uppercase = sum(c.isupper() for c in s)
+    num_lowercase = sum(c.islower() for c in s)
+    num_punctuation = sum(c in string.punctuation for c in s)
+    num_whitespace = sum(c.isspace() for c in s)
+    num_special_chars = sum((not c.isalnum()) and (not c.isspace()) for c in s)
+
+    proportion_uppercase = num_uppercase / length
+    proportion_digits = num_digits / length
+    proportion_punctuation = num_punctuation / length
+    proportion_whitespace = num_whitespace / length
+
+    avg_word_length = sum(len(word) for word in words) / num_words if num_words > 0 else 0
     longest_word_length = max((len(word) for word in words), default=0)
     shortest_word_length = min((len(word) for word in words), default=0)
-    proportion_words = round(num_words / length, 3) if length > 0 else 0
-    contains_email = "@" in cell
-    contains_url = any(substr in cell for substr in ["http://", "https://", "www."])
-    contains_hashtag = "#" in cell
-    contains_at_symbol = "@" in cell
-    is_numeric = cell.isdigit()
-    is_alpha = cell.isalpha()
-    is_alphanumeric = cell.isalnum()
-    is_capitalized = cell.istitle()
+    proportion_words = num_words / length
 
-    try:
-        shannon_entropy = -sum(
-            (cell.count(c) / length) * np.log2(cell.count(c) / length)
-            for c in set(cell)
-        )
-        shannon_entropy = round(shannon_entropy, 3) if length > 1 else 0
-    except ValueError:
-        shannon_entropy = 0  
+    contains_email = "@" in s
+    contains_url = any(substr in s for substr in ["http://", "https://", "www."])
+    contains_hashtag = "#" in s
+    currency_symbols = {'$', 'â¬', 'Â£', 'Â¥'}
+    contains_currency = any(sym in s for sym in currency_symbols)
 
-    unique_chars = len(set(cell))
-    proportion_vowels = round(sum(c in "aeiouAEIOU" for c in cell) / length, 3) if length > 0 else 0
-    is_palindrome = cell == cell[::-1]
-    repeating_chars = sum(cell[i] == cell[i - 1] for i in range(1, length))
-    repeating_words = sum(words[i] == words[i - 1] for i in range(1, len(words))) if num_words > 1 else 0
-    first_char_type = ord(cell[0]) if length > 0 else 0
-    last_char_type = ord(cell[-1]) if length > 0 else 0
-    most_frequent_char = max((cell.count(c) for c in set(cell)), default=0)
-    least_frequent_char = min((cell.count(c) for c in set(cell)), default=0)
-    digit_frequency = round(num_digits / length, 3) if length > 0 else 0
-    punctuation_frequency = round(num_punctuation / length, 3) if length > 0 else 0
-    whitespace_frequency = round(num_whitespace / length, 3) if length > 0 else 0
-    char_diversity_ratio = round(unique_chars / length, 3) if length > 0 else 0
-    num_alpha_sequences = sum(1 for part in words if part.isalpha())
+    is_numeric = s.isdigit()
+    is_alpha = s.isalpha()
+    is_alphanumeric = s.isalnum()
+    is_capitalized = s.istitle()
+
+    # Use Counter for frequency counts
+    counts = Counter(s)
+    shannon_entropy = -sum((cnt / length) * np.log2(cnt / length) for cnt in counts.values())
+    unique_chars = len(counts)
+    proportion_vowels = sum(c in "aeiouAEIOU" for c in s) / length
+    is_palindrome = s == s[::-1]
+    repeating_chars = sum(s[i] == s[i - 1] for i in range(1, length))
+    repeating_words = sum(words[i] == words[i - 1] for i in range(1, len(words)))
+    first_char_type = ord(s[0])
+    last_char_type = ord(s[-1])
+    most_frequent_char = max(counts.values(), default=0)
+    least_frequent_char = min(counts.values(), default=0)
+    digit_frequency = num_digits / length
+    punctuation_frequency = num_punctuation / length
+    whitespace_frequency = num_whitespace / length
+    char_diversity_ratio = unique_chars / length
+    num_alpha_sequences = sum(1 for word in words if word.isalpha())
 
     return [
-        length, num_digits, num_uppercase, num_lowercase, num_punctuation, 
-        num_whitespace, num_special_chars, proportion_uppercase, 
-        proportion_digits, proportion_punctuation, proportion_whitespace,
-        num_words, avg_word_length, longest_word_length, shortest_word_length, 
-        proportion_words, contains_email, contains_url, contains_hashtag, 
-        contains_at_symbol, is_numeric, is_alpha, is_alphanumeric, is_capitalized, 
-        shannon_entropy, unique_chars, proportion_vowels, is_palindrome, 
-        repeating_chars, repeating_words, first_char_type, last_char_type, 
-        most_frequent_char, least_frequent_char, digit_frequency, 
-        punctuation_frequency, whitespace_frequency, char_diversity_ratio, 
-        num_alpha_sequences
+        length, num_digits, num_uppercase, num_lowercase, num_punctuation, num_whitespace, num_special_chars,
+        proportion_uppercase, proportion_digits, proportion_punctuation, proportion_whitespace,
+        num_words, avg_word_length, longest_word_length, shortest_word_length, proportion_words,
+        contains_email, contains_url, contains_hashtag, contains_currency, is_numeric, is_alpha,
+        is_alphanumeric, is_capitalized, shannon_entropy, unique_chars, proportion_vowels, is_palindrome,
+        repeating_chars, repeating_words, first_char_type, last_char_type, most_frequent_char,
+        least_frequent_char, digit_frequency, punctuation_frequency, whitespace_frequency,
+        char_diversity_ratio, num_alpha_sequences
     ]
 
-def combine_features_for_row(row, model):
 
-    combined_row_features = []
-    
-    # Apply semantic encoding and combine features for each cell in the row
-    for cell in row:
-       
+def combine_features_for_table(table: pd.DataFrame):
+    """
+    Processes a table by computing semantic embeddings (batched) and syntactic features for each cell,
+    then combines them into a single feature vector per cell.
+    The final output is a PyTorch tensor in channel-first format -> (channels, num_rows, num_cols),
+    where channels = 39 syntactic features + 384 semantic embedding dimensions = 423
+    """
+    # Convert table cells to strings and flatten
+    cell_values = table.astype(str).to_numpy().flatten().tolist()
+
+    # Batch process semantic embeddings
+    semantic_embeddings = model.encode(cell_values, batch_size=32, convert_to_numpy=True)
+
+    combined_features = []
+    for i, cell in enumerate(cell_values):
         syntactic_features = extract_syntactic_features(cell)
-        if isinstance(cell, str):
-            semantic_features = model.encode([cell], convert_to_tensor=False)[0]
-        else:
-            semantic_features = np.zeros(384)  
-        
-        combined_features = np.hstack([syntactic_features, semantic_features])
-        combined_row_features.append(combined_features)
-    
-    return np.array(combined_row_features)
+        combined = np.hstack([syntactic_features, semantic_embeddings[i]])
+        combined_features.append(combined)
 
+    num_rows, num_cols = table.shape
+    # Reshape back to the original table structure -> (num_rows, num_cols, 423)
+    table_features = np.array(combined_features).reshape(num_rows, num_cols, -1)
 
-# resize the dataset to keep consisten table size 
-def resize_dataframe(df, target_rows=101, target_cols=50):
+    # Convert the numpy array to a pytorch tensor
+    table_tensor = torch.tensor(table_features, dtype=torch.float32)
+
+    # Permute dimensions to channel-first format -> (channels, num_rows, num_cols)
+    table_tensor = table_tensor.permute(2, 0, 1)
+    return table_tensor
+
+folder_path = "non_relational_tables"
+file_pattern = os.path.join(folder_path, "*.csv")
+file_paths = glob.glob(file_pattern)
+
+results = []
+for file_path in tqdm(file_paths, desc="Processing tables"):
+    file_name = os.path.basename(file_path)
+    if file_name.endswith("unstack.csv"):
+        label = "unstack"
+    elif file_name.endswith("transpose.csv"):
+        label = "transpose"
+    else:
+        print(f"Skipping file '{file_name}' (unknown transformation).")
+        continue
 
     try:
-        print("\n Debug: Resizing DataFrame...")
-
-        num_rows, num_cols = df.shape
-        if num_rows > target_rows:
-            df = df.iloc[:target_rows, :]
-        elif num_rows < target_rows:
-            repeat_factor = (target_rows // num_rows) + 1
-            df = pd.concat([df] * repeat_factor, ignore_index=True).iloc[:target_rows, :]
-            
-        if num_cols > target_cols:
-            df = df.iloc[:, :target_cols] 
-        elif num_cols < target_cols:
-            repeat_factor = (target_cols // num_cols) + 1
-            df = pd.concat([df] * repeat_factor, axis=1).iloc[:, :target_cols]
-            
-
-        print(f" Resized DataFrame Shape: {df.shape}")
-        return df
-
+        table = pd.read_csv(file_path)
     except Exception as e:
-        print(f" Error during resizing: {e}")
-        return df
-    
-def main():
-    relational_data = pd.read_csv("e-commerce_1.csv")
-    non_relational_table, operator_name = apply_random_inverse_operator(relational_data)
-    print(f"Applied random inverse operator: {operator_name}")
-    
-    non_relational_table.to_csv("non_relational_data.csv", index=False)
-    print(non_relational_table.shape) 
-    print(f"Shape of transformed table: {non_relational_table.shape}") 
-    if non_relational_table.empty:
-        print("Transformed table is empty. Exiting.")
-        return
+        print(f"Error reading '{file_name}': {e}")
+        continue
 
-    resized_df = resize_dataframe(non_relational_table)
-    resized_df.to_csv('resized_table.csv', index=False)
-    print(f"Shape of resized table: {resized_df.shape}")
-    
-    model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
+    # Process the table into a tensor with shape (423, num_rows, num_cols)
+    table_tensor = combine_features_for_table(table)
+    results.append({
+        "file": file_name,
+        "label": label,
+        "features": table_tensor
+    })
 
-    all_features = []
-    for row in resized_df.itertuples(index=False):
-        row_features = combine_features_for_row(row, model)
-        if row_features.size > 0:
-            all_features.append(row_features)
+print(f"Processing complete. Extracted features for {len(results)} tables.")
 
-    if not all_features:
-        print("No features extracted. Exiting.")
-        return
+# Stack all the table tensors into one tensor with shape: (N, 423, num_rows, num_cols) where N is the number of tables
+feature_tensors = [res["features"] for res in results]
+all_tensor_tables = torch.stack(feature_tensors)
 
-    final_features = np.stack(all_features)
-    print(f"Feature Tensor Shape: {final_features.shape}")
-    print(final_features[0, 0, :10])
+label_map = {"unstack": 0, "transpose": 1}
+all_labels = torch.tensor([label_map[res["label"]] for res in results], dtype=torch.long)
 
-if __name__ == "__main__":
-    main()
+#print("Overall dataset tensor shape:", all_tensor_tables.shape)
+#print("Overall labels tensor shape:", all_labels.shape)
+
+# Create a PyTorch dataset and DataLoader.
+dataset = TensorDataset(all_tensor_tables, all_labels)
+dataloader = DataLoader(dataset, batch_size=10, shuffle=True)
+
+# print("\n--- Sample Batch from DataLoader ---")
+# for batch_inputs, batch_labels in dataloader:
+#     print("Batch inputs shape:", batch_inputs.shape)  # Expected: (batch_size, 423, num_rows, num_cols)
+#     print("Batch labels shape:", batch_labels.shape)  # Expected: (batch_size,)
+#     break
