@@ -67,12 +67,11 @@ The AutoTables model consists of four main layers:
 ## **Folder Structure**
 
 ```
-📦 AutoTables
+📦 LSDI
  ┣ 📂 datasets
  ┃ ┣ 📂 testing_data                 # Relational input tables (CSV files)
  ┃ ┣ 📂 transformed_data             # Non-relational tables (after applying transformations)
- ┃ ┣ 📂 resized_data                 # Resized tables (after fixing dimensions)
- ┃ ┗ 📜 sample.csv                   # Example dataset
+ ┃ ┗ 📂 resized_data                 # Resized tables (after fixing dimensions)
  ┣ 📂 model_architecture
  ┃ ┣ 📜 embedding_layer.py            # Extracts syntactic & semantic features
  ┃ ┣ 📜 dimension_reduction.py        # Applies 1×1 convolutions to reduce dimensions
