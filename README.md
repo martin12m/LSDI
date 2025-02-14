@@ -68,23 +68,31 @@ The AutoTables model consists of four main layers:
 
 ```
 📦 LSDI
+ ┣ 📂 data_generation
+   ┣ 📜 MySQL-database-connection.py # Connects to a MySQL database (relational-data.org) and downloads all tables
+   ┣ 📜 kaggleDatasets.py            # Connects to Kaggle and downloads N datasets between 20KB-2MB
+   ┗ 📜 tableGeneration.py           # Uses Faker to generate N amount of tables within different domains
  ┣ 📂 datasets
- ┃ ┣ 📂 testing_data                 # Relational input tables (CSV files)
- ┃ ┣ 📂 transformed_data             # Non-relational tables (after applying transformations)
- ┃ ┗ 📂 resized_data                 # Resized tables (after fixing dimensions)
+ ┃ ┣ 📂 kaggle_datasets.zip          # 1000 datasets downloaded from kaggle (for testing)
+ ┃ ┣ 📂 relational_tables_15k.zip    # 15000 relatinal datasets generated with Faker (for training)
+ ┃ ┗ 📂 relational_tables_5k.zip     # 5000 relational datasets generated with Faker (for training)
  ┣ 📂 model_architecture
- ┃ ┣ 📜 embedding_layer.py            # Extracts syntactic & semantic features
- ┃ ┣ 📜 dimension_reduction.py        # Applies 1×1 convolutions to reduce dimensions
- ┃ ┣ 📜 feature_extraction.py         # Extracts table structure using CNN
- ┃ ┣ 📜 output_layer.py               # Predicts best transformation
- ┃ ┣ 📜 semantic_features.py          # Debug the featuer vector values by appyling SemanticFeatures
- ┃ ┣ 📜 synthetic_features.py          # Debug the featuer vector values by appyling SyntheticFeatures
- ┃ ┗ 📜 utils.py                      # Helper functions for preprocessing
- ┣ 📜 Train_the_Model.py               # script to train AutoTables
- ┣ 📜 test_the_Model.py               # script to test AutoTables
- ┣ 📜 requirements.txt                 # Python dependencies
- ┣ 📜 README.md                        # Project documentation
- ┗ 📜 LICENSE                          # License file
+ ┃ ┣ 📜 apply_transformations.py     # Apply transformations (unstack, transpose) and zero-padding 
+ ┃ ┣ 📜 dimension_reduction.py       # Applies 1×1 convolutions to reduce dimensions
+ ┃ ┣ 📜 embedding_layer.py           # Extracts syntactic & semantic features
+ ┃ ┣ 📜 feature_extraction.py        # Extracts table structure using CNN
+ ┃ ┣ 📜 output_layer.py              # Predicts best transformation
+ ┃ ┣ 📜 semantic_features.py         # Debug the feature vector values by appyling SemanticFeatures
+ ┃ ┗ 📜 synthetic_features.py        # Debug the feature vector values by appyling SyntheticFeatures    
+ ┃ 📂 Training_and_testing
+   ┣ 📜 apply_transformations.py     # Apply transformations (unstack, transpose) and zero-padding
+   ┣ 📜 Embedding_layer.py           # Extracts syntactic & semantic features
+   ┣ 📜 tableGeneration.py           # Uses Faker to generate N amount of tables within different domains
+   ┣ 📜 Train_the_Model.py           # Training loop with data splitting
+   ┗ 📜 Test_the_Model.py            # Test the model on additional data
+ ┣ 📜 requirements.txt               # Python dependencies
+ ┣ 📜 README.md                      # Project documentation
+ ┗ 📜 LICENSE                        # License file
 ```
 
 ---
@@ -101,9 +109,9 @@ pip install -r requirements.txt
 
 ### **2️⃣ Dataset Preparation**
 
-- Place **relational input tables** in **datasets/testing_data/**.
-- The model will automatically generate transformed tables in **datasets/transformed_data/**.
-- The resized tables will be stored in **datasets/resized_data/**.
+- Run **tableGeneration.py** by setting the desired number of tables to be generated. Output folder: **relational_tables**.
+- Run **apply_transformations.py** This will automatically generate transformed tables.
+- The resized tables will be stored in **non_relational_tables**.
 
 ### **3️⃣ Running the Model**
 
