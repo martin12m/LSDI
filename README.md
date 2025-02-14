@@ -164,10 +164,10 @@ The final evaluation on the test set of 2000 tables yielded the following metric
 
               precision    recall  f1-score   support
 
-           0       0.97      0.99      0.98        87
-           1       0.99      0.97      0.98       113
+           0       0.97      0.99      0.98        870
+           1       0.99      0.97      0.98       1130
 
-    accuracy                           0.98       2000
+     accuracy                          0.98       2000
     macro avg      0.98      0.98      0.98       2000
  weighted avg      0.98      0.98      0.98       2000
 
