@@ -113,7 +113,17 @@ pip install -r requirements.txt
 - Run **apply_transformations.py** This will automatically generate transformed tables.
 - The resized tables will be stored in **non_relational_tables**.
 
-### **3️⃣ Running the Model**
+### **3️⃣ Embedding Layer Execution**
+
+Before training, extract the combined syntactic and semantic features by running the embedding layer:
+
+```bash
+python Embedding_layer.py
+```
+
+This script processes the transformed tables, extracts features, and creates a dataset (e.g., a TensorDataset along with a DataLoader) that will be used in training.
+
+### **4️⃣ Running the Model**
 
 To **train** the model:
 
@@ -121,7 +131,7 @@ To **train** the model:
 python Train_the_Model.py
 ```
 
-To **test** on a new dataset:
+**Evaluate** the model on new data using:
 
 ```bash
 python Test_the_Model.py
