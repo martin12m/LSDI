@@ -28,9 +28,7 @@ The system leverages **deep learning techniques, convolutional neural networks (
 - **Automatic Table Transformation:** Detects and applies the most relevant transformations (e.g., **unstack, transpose**).
 - **Deep Learning-based Feature Extraction:** Learns meaningful **syntactic & semantic** patterns from tables.
 - **Self-Supervised Learning:** Generates its own training dataset via **inverse transformations** (e.g., stack ↔ unstack).
-- **Re-ranking Model:** Improves predictions by evaluating both **input** and **output** tables.
 - **CNN-inspired Architecture:** Uses convolutional layers to analyze **structural patterns** in tabular data.
-- **Scalable and Efficient:** Designed to process large datasets interactively with **sub-second latency**.
 
 ---
 
