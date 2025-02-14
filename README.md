@@ -155,7 +155,7 @@ Epoch 4:
 Average Loss: 0.4294, Accuracy: 97.50%
 Epoch 5:
 Average Loss: 0.2743, Accuracy: 97.50%
--
+
 **Analysis**
 In the early epochs, the model experienced fluctuating performance - with a dip in accuracy by the third epoch. However, from epoch 4 onward, the model rapidly adapted and achieved a significant performance jump, stabilizing at around 97.50% accuracy with a lower average loss. This suggests that after an initial period of adjustment, the model successfully learned the key features necessary for distinguishing between the transformations.
 
@@ -168,8 +168,8 @@ The final evaluation on the test set of 2000 tables yielded the following metric
            1       0.99      0.97      0.98       113
 
     accuracy                           0.98       2000
-   macro avg       0.98      0.98      0.98       2000
-weighted avg       0.98      0.98      0.98       2000
+    macro avg      0.98      0.98      0.98       2000
+ weighted avg      0.98      0.98      0.98       2000
 
 
 **Analysis**
