@@ -1,4 +1,4 @@
-
+# In this file can extract the features vector values from the input file
 import logging
 import string
 import numpy as np

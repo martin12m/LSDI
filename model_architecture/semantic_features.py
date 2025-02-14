@@ -1,3 +1,5 @@
+# In this file you can extract the semantic features vector from the input file
+
 import torch
 import numpy as np
 from sentence_transformers import SentenceTransformer
