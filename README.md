@@ -162,14 +162,14 @@ In the early epochs, the model experienced fluctuating performance - with a dip 
 **Detailed Classification Metrics**
 The final evaluation on the test set of 2000 tables yielded the following metrics:
 
-              precision    recall  f1-score   support
+| Class        | Precision | Recall | F1-Score | Support |
+|-------------|-----------|--------|----------|---------|
+| 0           | 0.97      | 0.99   | 0.98     | 870     |
+| 1           | 0.99      | 0.97   | 0.98     | 1130    |
+| **Accuracy**|           |        | 0.98     | 2000    |
+| **Macro Avg**   | 0.98  | 0.98   | 0.98     | 2000    |
+| **Weighted Avg**| 0.98  | 0.98   | 0.98     | 2000    |
 
-           0       0.97      0.99      0.98        870
-           1       0.99      0.97      0.98       1130
-
-     accuracy                          0.98       2000
-    macro avg      0.98      0.98      0.98       2000
- weighted avg      0.98      0.98      0.98       2000
 
 **Analysis:**
 Overall Accuracy: The model achieved a 98% accuracy on the test set, indicating high reliability in transformation classification.
