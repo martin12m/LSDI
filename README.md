@@ -156,7 +156,7 @@ Average Loss: 0.4294, Accuracy: 97.50%
 Epoch 5:
 Average Loss: 0.2743, Accuracy: 97.50%
 
-**Analysis**
+**Analysis:**
 In the early epochs, the model experienced fluctuating performance - with a dip in accuracy by the third epoch. However, from epoch 4 onward, the model rapidly adapted and achieved a significant performance jump, stabilizing at around 97.50% accuracy with a lower average loss. This suggests that after an initial period of adjustment, the model successfully learned the key features necessary for distinguishing between the transformations.
 
 **Detailed Classification Metrics**
@@ -171,8 +171,7 @@ The final evaluation on the test set of 2000 tables yielded the following metric
     macro avg      0.98      0.98      0.98       2000
  weighted avg      0.98      0.98      0.98       2000
 
-
-**Analysis**
+**Analysis:**
 Overall Accuracy: The model achieved a 98% accuracy on the test set, indicating high reliability in transformation classification.
 Per-Class Performance:
 For transformation type 0 (e.g., unstack), the precision was 0.97 and recall was 0.99.
