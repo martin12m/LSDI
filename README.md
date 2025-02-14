@@ -109,7 +109,7 @@ pip install -r requirements.txt
 
 ### **2️⃣ Dataset Preparation**
 
-- Run **tableGeneration.py** by setting the desired number of tables to be generated. Output folder: **relational_tables**.
+- Run **tableGeneration.py** by setting the desired number of tables to be generated.
 - Run **apply_transformations.py** This will automatically generate transformed tables.
 - The resized tables will be stored in **non_relational_tables**.
 
