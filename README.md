@@ -111,13 +111,13 @@ pip install -r requirements.txt
 To **train** the model:
 
 ```bash
-python main.py --train
+python Train_the_Model.py
 ```
 
 To **test** on a new dataset:
 
 ```bash
-python main.py --test
+python Test_the_Model.py
 ```
 
 ---
